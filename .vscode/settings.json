@@ -1,0 +1,9 @@
+{
+  "debug.javascript.terminalOptions": {
+    "resolveSourceMapLocations": [
+      "${workspaceFolder}/**",
+      "!**/node_modules/**"
+    ]
+  },
+  "java.compile.nullAnalysis.mode": "automatic"
+}
