@@ -9,7 +9,7 @@ import {
   Eye, Edit, Trash2, ChevronRight, Bell, CheckCircle,
 } from "lucide-react";
 import { Button, Badge } from "@/components/ui/index";
-import { createGalleryProduct, getAggregatedReviews, getEquipment, getGalleryProducts, getServices, createService } from "@/lib/api";
+import { createEquipment, createGalleryProduct, getAggregatedReviews, getEquipment, getGalleryProducts, getServices, createService, deleteEquipmentAdmin, updateEquipmentAdmin, deleteServiceAdmin, updateServiceAdmin, getPendingReviewsAdmin, approveReviewAdmin, deleteReviewAdmin } from "@/lib/api";
 import type { Equipment, Product, Review, Service } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -58,13 +58,34 @@ export default function AdminPage() {
     description: "",
     price: 100,
     durationMinutes: 60,
-    serviceType: "STUDIO",
+    serviceType:"PRE_SHOOT",
     thumbnailImage: "",
     includes: "",
   });
   const [savingService, setSavingService] = useState(false);
   const [serviceMessage, setServiceMessage] = useState<string | null>(null);
   const [serviceError, setServiceError] = useState<string | null>(null);
+  const [editingServiceId, setEditingServiceId] = useState<number | null>(null);
+  const [deletingServiceId, setDeletingServiceId] = useState<string | null>(null);
+  const [newEquipment, setNewEquipment] = useState({
+    name: "",
+    brand: "",
+    description: "",
+    dailyRentalPrice: 3500,
+    weeklyRentalPrice: 18000,
+    totalStock: 1,
+    availableStock: 1,
+    category: "CAMERA",
+    thumbnailImage: "",
+    specifications: "",
+    active: true,
+  });
+  const [savingEquipment, setSavingEquipment] = useState(false);
+  const [equipmentMessage, setEquipmentMessage] = useState<string | null>(null);
+  const [equipmentError, setEquipmentError] = useState<string | null>(null);
+  const [editingEquipmentId, setEditingEquipmentId] = useState<number | null>(null);
+  const [deletingEquipmentId, setDeletingEquipmentId] = useState<string | null>(null);
+  const [processingReviewId, setProcessingReviewId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAdmin()) {
@@ -73,15 +94,69 @@ export default function AdminPage() {
       return;
     }
     setAuthorized(true);
-    Promise.all([getServices(), getEquipment(), getGalleryProducts(), getAggregatedReviews()]).then(
-      ([s, e, p, r]) => {
+    const token = getAccessToken();
+    Promise.all([
+      getServices(),
+      getEquipment(),
+      getGalleryProducts(),
+      getAggregatedReviews(),
+      token ? getPendingReviewsAdmin(token) : Promise.resolve([]),
+    ]).then(([s, e, p, approvedReviews, pendingReviews]) => {
+      const mappedPending: Review[] = pendingReviews.map((item) => ({
+        id: `rev-${item.id}`,
+        name: item.userFullName || "Client",
+        avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&q=80",
+        service: item.serviceName || item.equipmentName || "Service",
+        rating: item.rating,
+        comment: item.comment,
+        date: item.createdAt?.split("T")[0] ?? "",
+        verified: false,
+      }));
+      const existingIds = new Set(mappedPending.map((item) => item.id));
+      const mergedReviews = [...mappedPending, ...approvedReviews.filter((item) => !existingIds.has(item.id))];
+      
         setServices(s);
         setEquipment(e);
         setProducts(p);
-        setReviews(r);
-      }
-    );
+        setReviews(mergedReviews);
+      });
   }, [router]);
+
+  function parseReviewId(rawId: string): number | null {
+    const numericId = Number(rawId.replace("rev-", ""));
+    return Number.isFinite(numericId) ? numericId : null;
+  }
+
+  async function handleApproveReview(review: Review) {
+    const token = getAccessToken();
+    if (!token) return;
+    const reviewId = parseReviewId(review.id);
+    if (!reviewId) return;
+
+    setProcessingReviewId(review.id);
+    const ok = await approveReviewAdmin(token, reviewId);
+    setProcessingReviewId(null);
+    if (!ok) return;
+
+    setReviews((current) => current.map((item) => (item.id === review.id ? { ...item, verified: true } : item)));
+  }
+
+  async function handleDeleteReview(review: Review) {
+    const token = getAccessToken();
+    if (!token) return;
+    const reviewId = parseReviewId(review.id);
+    if (!reviewId) return;
+
+    const confirmed = window.confirm("Delete this review?");
+    if (!confirmed) return;
+
+    setProcessingReviewId(review.id);
+    const ok = await deleteReviewAdmin(token, reviewId);
+    setProcessingReviewId(null);
+    if (!ok) return;
+
+    setReviews((current) => current.filter((item) => item.id !== review.id));
+  }
 
   async function handleAddService(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -98,36 +173,127 @@ export default function AdminPage() {
       return;
     }
 
+    const normalizedDuration = Number.isFinite(newService.durationMinutes)
+      ? Math.max(30, newService.durationMinutes)
+      : 60;
+
     setSavingService(true);
-    const created = await createService(token, {
+    const payload = {
       name: newService.name,
       description: newService.description,
       price: newService.price,
-      durationMinutes: newService.durationMinutes,
+      durationMinutes: normalizedDuration,
       serviceType: newService.serviceType,
       thumbnailImage: newService.thumbnailImage || undefined,
       includes: newService.includes || undefined,
-    });
+    };
+    const saved = editingServiceId
+      ? await updateServiceAdmin(token, editingServiceId, payload)
+      : await createService(token, payload);
     setSavingService(false);
 
-    if (!created) {
+    if (!saved) {
       setServiceError(
-        "Unable to save service. Ensure you are logged in as an admin and the API URL (NEXT_PUBLIC_API_BASE_URL or NEXT_PUBLIC_API_URL) matches your backend."
+        `Unable to ${editingServiceId ? "update" : "save"} service. Ensure you are logged in as an admin and the API URL (NEXT_PUBLIC_API_BASE_URL or NEXT_PUBLIC_API_URL) matches your backend.`
       );
       return;
     }
 
-    setServices((current) => [created, ...current]);
-    setServiceMessage('Service saved successfully.');
+    const refreshedServices = await getServices();
+    setServices((current) => (refreshedServices.length ? refreshedServices : [saved, ...current]));
+    setServiceMessage(`Service ${editingServiceId ? "updated" : "saved"} successfully.`);
+    setEditingServiceId(null);
     setNewService({
       name: "",
       description: "",
       price: 100,
       durationMinutes: 60,
-      serviceType: "STUDIO",
+      serviceType: "PRE_SHOOT",
       thumbnailImage: "",
       includes: "",
     });
+  }
+
+  function parseServiceId(rawId: string): number | null {
+    const numericId = Number(rawId.replace("svc-", ""));
+    return Number.isFinite(numericId) ? numericId : null;
+  }
+
+  function toBackendServiceType(category: Service["category"]): string {
+    switch (category) {
+      case "graduation":
+        return "GRADUATION";
+      case "birthday":
+        return "BIRTHDAY";
+      case "event":
+        return "EVENT";
+      case "model-shoot":
+        return "MODEL_SHOOT";
+      default:
+        return "PRE_SHOOT";
+    }
+  }
+
+  function parseDurationMinutes(duration: string): number {
+    const match = duration.match(/\d+/);
+    const parsed = match ? Number(match[0]) : 60;
+    return Number.isFinite(parsed) ? Math.max(30, parsed) : 60;
+  }
+
+  function handleEditService(serviceItem: Service) {
+    const serviceId = parseServiceId(serviceItem.id);
+    if (!serviceId) {
+      setServiceError("Unable to edit this service because its id is invalid.");
+      return;
+    }
+
+    setServiceError(null);
+    setServiceMessage("Editing service. Update the form values and click Save.");
+    setEditingServiceId(serviceId);
+    setNewService({
+      name: serviceItem.title,
+      description: serviceItem.description || "",
+      price: serviceItem.price,
+      durationMinutes: parseDurationMinutes(serviceItem.duration),
+      serviceType: toBackendServiceType(serviceItem.category),
+      thumbnailImage: serviceItem.image || "",
+      includes: serviceItem.includes.join(", "),
+    });
+  }
+
+  async function handleDeleteService(serviceItem: Service) {
+    setServiceError(null);
+    setServiceMessage(null);
+
+    const serviceId = parseServiceId(serviceItem.id);
+    if (!serviceId) {
+      setServiceError("Unable to delete this service because its id is invalid.");
+      return;
+    }
+
+    const token = getAccessToken();
+    if (!token) {
+      setServiceError("You must be logged in to delete services.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete "${serviceItem.title}"? This cannot be undone.`);
+    if (!confirmed) return;
+
+    setDeletingServiceId(serviceItem.id);
+    const deleted = await deleteServiceAdmin(token, serviceId);
+    setDeletingServiceId(null);
+
+    if (!deleted) {
+      setServiceError("Unable to delete service. Please try again.");
+      return;
+    }
+
+    if (editingServiceId === serviceId) {
+      setEditingServiceId(null);
+    }
+    setServices((current) => current.filter((item) => item.id !== serviceItem.id));
+    setServiceMessage("Service deleted successfully.");
   }
 
   async function handleAddProduct(event: FormEvent<HTMLFormElement>) {
@@ -175,6 +341,146 @@ export default function AdminPage() {
       featured: false,
       active: true,
     });
+  }
+
+  async function handleAddEquipment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setEquipmentError(null);
+    setEquipmentMessage(null);
+
+    if (!newEquipment.name.trim() || !newEquipment.brand.trim()) {
+      setEquipmentError("Please add equipment name and brand.");
+      return;
+    }
+
+    const token = getAccessToken();
+    if (!token) {
+      setEquipmentError("You must be logged in to add equipment.");
+      return;
+    }
+
+    setSavingEquipment(true);
+    const payload = {
+      name: newEquipment.name,
+      brand: newEquipment.brand,
+      description: newEquipment.description || undefined,
+      dailyRentalPrice: newEquipment.dailyRentalPrice,
+      weeklyRentalPrice: newEquipment.weeklyRentalPrice,
+      totalStock: newEquipment.totalStock,
+      availableStock: newEquipment.availableStock,
+      category: newEquipment.category,
+      thumbnailImage: newEquipment.thumbnailImage || undefined,
+      specifications: newEquipment.specifications || undefined,
+      active: newEquipment.active,
+    };
+    const saved = editingEquipmentId
+      ? await updateEquipmentAdmin(token, editingEquipmentId, payload)
+      : await createEquipment(token, payload);
+    setSavingEquipment(false);
+
+    if (!saved) {
+      setEquipmentError(
+        `Unable to ${editingEquipmentId ? "update" : "save"} equipment. Ensure you are logged in as an admin and the API URL (NEXT_PUBLIC_API_BASE_URL or NEXT_PUBLIC_API_URL) matches your backend.`
+      );
+      return;
+    }
+
+    const refreshedEquipment = await getEquipment();
+    setEquipment((current) => (refreshedEquipment.length ? refreshedEquipment : [saved, ...current]));
+    setEquipmentMessage(`Equipment ${editingEquipmentId ? "updated" : "saved"} successfully.`);
+    setEditingEquipmentId(null);
+    setNewEquipment({
+      name: "",
+      brand: "",
+      description: "",
+      dailyRentalPrice: 3500,
+      weeklyRentalPrice: 18000,
+      totalStock: 1,
+      availableStock: 1,
+      category: "CAMERA",
+      thumbnailImage: "",
+      specifications: "",
+      active: true,
+    });
+  }
+
+  function parseEquipmentId(rawId: string): number | null {
+    const numericId = Number(rawId.replace("eq-", ""));
+    return Number.isFinite(numericId) ? numericId : null;
+  }
+
+  function toBackendEquipmentCategory(category: Equipment["category"]): string {
+    switch (category) {
+      case "camera":
+        return "CAMERA";
+      case "lens":
+        return "LENS";
+      case "lighting":
+        return "LIGHTING";
+      case "drone":
+        return "DRONE";
+      default:
+        return "ACCESSORY";
+    }
+  }
+
+  function handleEditEquipment(equipmentItem: Equipment) {
+    const equipmentId = parseEquipmentId(equipmentItem.id);
+    if (!equipmentId) {
+      setEquipmentError("Unable to edit this equipment item because its id is invalid.");
+      return;
+    }
+
+    setEquipmentError(null);
+    setEquipmentMessage("Editing equipment. Update the form values and click Save.");
+    setEditingEquipmentId(equipmentId);
+    setNewEquipment({
+      name: equipmentItem.name,
+      brand: equipmentItem.brand,
+      description: equipmentItem.description || "",
+      dailyRentalPrice: equipmentItem.pricePerDay,
+      weeklyRentalPrice: equipmentItem.pricePerDay * 5,
+      totalStock: 1,
+      availableStock: equipmentItem.available ? 1 : 0,
+      category: toBackendEquipmentCategory(equipmentItem.category),
+      thumbnailImage: equipmentItem.image || "",
+      specifications: equipmentItem.specs.join(", "),
+      active: true,
+    });
+  }
+
+  async function handleDeleteEquipment(equipmentItem: Equipment) {
+    setEquipmentError(null);
+    setEquipmentMessage(null);
+    const equipmentId = parseEquipmentId(equipmentItem.id);
+    if (!equipmentId) {
+      setEquipmentError("Unable to delete this equipment item because its id is invalid.");
+      return;
+    }
+
+    const token = getAccessToken();
+    if (!token) {
+      setEquipmentError("You must be logged in to delete equipment.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete "${equipmentItem.name}"? This cannot be undone.`);
+    if (!confirmed) return;
+
+    setDeletingEquipmentId(equipmentItem.id);
+    const deleted = await deleteEquipmentAdmin(token, equipmentId);
+    setDeletingEquipmentId(null);
+
+    if (!deleted) {
+      setEquipmentError("Unable to delete equipment. Please try again.");
+      return;
+    }
+
+    if (editingEquipmentId === equipmentId) {
+      setEditingEquipmentId(null);
+    }
+    setEquipment((current) => current.filter((item) => item.id !== equipmentItem.id));
+    setEquipmentMessage("Equipment deleted successfully.");
   }
 
   const navItems: { id: Tab; label: string; icon: React.ElementType; count?: number }[] = useMemo(
@@ -397,7 +703,7 @@ export default function AdminPage() {
                     <p className="text-xs text-obsidian-400 dark:text-obsidian-500 mt-1">Add a new photography service and save it to the backend.</p>
                   </div>
                   <Button size="sm" type="submit" form="add-service-form" disabled={savingService} className="gap-2">
-                    {savingService ? 'Saving...' : '+ Add Service'}
+                    {savingService ? "Saving..." : editingServiceId ? "Save Service" : "+ Add Service"}
                   </Button>
                 </div>
 
@@ -442,6 +748,7 @@ export default function AdminPage() {
                       <input
                         id="service-duration"
                         type="number"
+                        min={30}
                         value={newService.durationMinutes}
                         onChange={(event) => setNewService((prev) => ({ ...prev, durationMinutes: Number(event.target.value) }))}
                         className="mt-2 w-full rounded-sm border border-obsidian-200 bg-white dark:bg-obsidian-950 px-3 py-2 text-sm text-obsidian-900 dark:text-obsidian-100"
@@ -456,11 +763,11 @@ export default function AdminPage() {
                         onChange={(event) => setNewService((prev) => ({ ...prev, serviceType: event.target.value }))}
                         className="mt-2 w-full rounded-sm border border-obsidian-200 bg-white dark:bg-obsidian-950 px-3 py-2 text-sm text-obsidian-900 dark:text-obsidian-100"
                       >
-                        <option value="STUDIO">Studio</option>
-                        <option value="WEDDING">Wedding</option>
+                        <option value="GRADUATION">Graduation</option>
+                        <option value="BIRTHDAY">Birthday</option>
                         <option value="EVENT">Event</option>
-                        <option value="PORTRAIT">Portrait</option>
-                        <option value="OUTDOOR">Outdoor</option>
+                        <option value="MODEL_SHOOT">Model shoot</option>
+                        <option value="PRE_SHOOT">Pre-shoot</option>
                       </select>
                     </div>
                     <div>
@@ -510,8 +817,8 @@ export default function AdminPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-1">
-                            <button className="p-1.5 hover:bg-obsidian-100 dark:hover:bg-obsidian-800 rounded text-obsidian-500 hover:text-blue-600" onClick={() => alert(`Edit service ${s.id}`)} aria-label="Edit service"><Edit size={13} /></button>
-                            <button className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded text-obsidian-500 hover:text-red-600" onClick={() => alert(`Delete service ${s.id}`)} aria-label="Delete service"><Trash2 size={13} /></button>
+                            <button type="button" className="p-1.5 hover:bg-obsidian-100 dark:hover:bg-obsidian-800 rounded text-obsidian-500 hover:text-blue-600" onClick={() => handleEditService(s)} aria-label="Edit service"><Edit size={13} /></button>
+                            <button type="button" className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded text-obsidian-500 hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => handleDeleteService(s)} disabled={deletingServiceId === s.id} aria-label="Delete service"><Trash2 size={13} /></button>
                           </div>
                         </td>
                       </tr>
@@ -525,9 +832,136 @@ export default function AdminPage() {
           {/* Equipment tab */}
           {activeTab === "equipment" && (
             <div>
-              <div className="flex items-center justify-between mb-5">
-                <p className="text-sm text-obsidian-500">{equipment.length} items in inventory</p>
-                <Button size="sm" onClick={() => alert('Add new equipment')}>+ Add Equipment</Button>
+              <div className="flex flex-col gap-4 mb-6 rounded-sm border border-obsidian-200 dark:border-obsidian-800 bg-white dark:bg-obsidian-900 p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div>
+                    <p className="text-sm text-obsidian-500 dark:text-obsidian-400">{equipment.length} items in inventory</p>
+                    <p className="text-xs text-obsidian-400 dark:text-obsidian-500 mt-1">Add new equipment and save it to the backend.</p>
+                  </div>
+                  <Button size="sm" type="submit" form="add-equipment-form" disabled={savingEquipment} className="gap-2">
+                    {savingEquipment ? "Saving..." : editingEquipmentId ? "Save Equipment" : "+ Add Equipment"}
+                  </Button>
+                </div>
+
+                <form id="add-equipment-form" onSubmit={handleAddEquipment} className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                  <div className="space-y-3 lg:col-span-2">
+                    <div>
+                      <label htmlFor="equipment-name" className="text-xs font-medium text-obsidian-600 dark:text-obsidian-300">Name</label>
+                      <input
+                        id="equipment-name"
+                        value={newEquipment.name}
+                        onChange={(event) => setNewEquipment((prev) => ({ ...prev, name: event.target.value }))}
+                        className="mt-2 w-full rounded-sm border border-obsidian-200 bg-white dark:bg-obsidian-950 px-3 py-2 text-sm text-obsidian-900 dark:text-obsidian-100"
+                        placeholder="Canon EOS R6"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="equipment-description" className="text-xs font-medium text-obsidian-600 dark:text-obsidian-300">Description</label>
+                      <textarea
+                        id="equipment-description"
+                        value={newEquipment.description}
+                        onChange={(event) => setNewEquipment((prev) => ({ ...prev, description: event.target.value }))}
+                        className="mt-2 w-full min-h-[90px] rounded-sm border border-obsidian-200 bg-white dark:bg-obsidian-950 px-3 py-2 text-sm text-obsidian-900 dark:text-obsidian-100"
+                        placeholder="Short description"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label htmlFor="equipment-brand" className="text-xs font-medium text-obsidian-600 dark:text-obsidian-300">Brand</label>
+                      <input
+                        id="equipment-brand"
+                        value={newEquipment.brand}
+                        onChange={(event) => setNewEquipment((prev) => ({ ...prev, brand: event.target.value }))}
+                        className="mt-2 w-full rounded-sm border border-obsidian-200 bg-white dark:bg-obsidian-950 px-3 py-2 text-sm text-obsidian-900 dark:text-obsidian-100"
+                        placeholder="Canon"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="equipment-category" className="text-xs font-medium text-obsidian-600 dark:text-obsidian-300">Category</label>
+                      <select
+                        id="equipment-category"
+                        value={newEquipment.category}
+                        onChange={(event) => setNewEquipment((prev) => ({ ...prev, category: event.target.value }))}
+                        className="mt-2 w-full rounded-sm border border-obsidian-200 bg-white dark:bg-obsidian-950 px-3 py-2 text-sm text-obsidian-900 dark:text-obsidian-100"
+                      >
+                        <option value="CAMERA">Camera</option>
+                        <option value="LENS">Lens</option>
+                        <option value="LIGHTING">Lighting</option>
+                        <option value="DRONE">Drone</option>
+                        <option value="ACCESSORY">Accessory</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="equipment-image" className="text-xs font-medium text-obsidian-600 dark:text-obsidian-300">Image URL</label>
+                      <input
+                        id="equipment-image"
+                        value={newEquipment.thumbnailImage}
+                        onChange={(event) => setNewEquipment((prev) => ({ ...prev, thumbnailImage: event.target.value }))}
+                        className="mt-2 w-full rounded-sm border border-obsidian-200 bg-white dark:bg-obsidian-950 px-3 py-2 text-sm text-obsidian-900 dark:text-obsidian-100"
+                        placeholder="https://..."
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label htmlFor="equipment-price-day" className="text-xs font-medium text-obsidian-600 dark:text-obsidian-300">Daily price (LKR)</label>
+                      <input
+                        id="equipment-price-day"
+                        type="number"
+                        value={newEquipment.dailyRentalPrice}
+                        onChange={(event) => setNewEquipment((prev) => ({ ...prev, dailyRentalPrice: Number(event.target.value) }))}
+                        className="mt-2 w-full rounded-sm border border-obsidian-200 bg-white dark:bg-obsidian-950 px-3 py-2 text-sm text-obsidian-900 dark:text-obsidian-100"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="equipment-price-week" className="text-xs font-medium text-obsidian-600 dark:text-obsidian-300">Weekly price (LKR)</label>
+                      <input
+                        id="equipment-price-week"
+                        type="number"
+                        value={newEquipment.weeklyRentalPrice}
+                        onChange={(event) => setNewEquipment((prev) => ({ ...prev, weeklyRentalPrice: Number(event.target.value) }))}
+                        className="mt-2 w-full rounded-sm border border-obsidian-200 bg-white dark:bg-obsidian-950 px-3 py-2 text-sm text-obsidian-900 dark:text-obsidian-100"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label htmlFor="equipment-total-stock" className="text-xs font-medium text-obsidian-600 dark:text-obsidian-300">Total stock</label>
+                        <input
+                          id="equipment-total-stock"
+                          type="number"
+                          value={newEquipment.totalStock}
+                          onChange={(event) => setNewEquipment((prev) => ({ ...prev, totalStock: Number(event.target.value) }))}
+                          className="mt-2 w-full rounded-sm border border-obsidian-200 bg-white dark:bg-obsidian-950 px-3 py-2 text-sm text-obsidian-900 dark:text-obsidian-100"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="equipment-available-stock" className="text-xs font-medium text-obsidian-600 dark:text-obsidian-300">Available</label>
+                        <input
+                          id="equipment-available-stock"
+                          type="number"
+                          value={newEquipment.availableStock}
+                          onChange={(event) => setNewEquipment((prev) => ({ ...prev, availableStock: Number(event.target.value) }))}
+                          className="mt-2 w-full rounded-sm border border-obsidian-200 bg-white dark:bg-obsidian-950 px-3 py-2 text-sm text-obsidian-900 dark:text-obsidian-100"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label htmlFor="equipment-specs" className="text-xs font-medium text-obsidian-600 dark:text-obsidian-300">Specifications (comma-separated)</label>
+                      <input
+                        id="equipment-specs"
+                        value={newEquipment.specifications}
+                        onChange={(event) => setNewEquipment((prev) => ({ ...prev, specifications: event.target.value }))}
+                        className="mt-2 w-full rounded-sm border border-obsidian-200 bg-white dark:bg-obsidian-950 px-3 py-2 text-sm text-obsidian-900 dark:text-obsidian-100"
+                        placeholder="24MP, 4K, Mirrorless"
+                      />
+                    </div>
+                    {equipmentError && <p className="text-xs text-red-500">{equipmentError}</p>}
+                    {equipmentMessage && <p className="text-xs text-emerald-600">{equipmentMessage}</p>}
+                  </div>
+                </form>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {equipment.map((e) => (
@@ -543,8 +977,8 @@ export default function AdminPage() {
                     </div>
                     <p className="text-xs text-obsidian-500 capitalize mb-3">{e.category} · {formatPrice(e.pricePerDay)}/day</p>
                     <div className="flex gap-2">
-                      <button className="flex items-center gap-1 text-xs text-obsidian-600 hover:text-blue-600 transition-colors" onClick={() => alert(`Edit equipment ${e.id}`)} aria-label="Edit equipment"><Edit size={11} /> Edit</button>
-                      <button className="flex items-center gap-1 text-xs text-obsidian-600 hover:text-red-600 transition-colors" onClick={() => alert(`Remove equipment ${e.id}`)} aria-label="Remove equipment"><Trash2 size={11} /> Remove</button>
+                      <button type="button" className="flex items-center gap-1 text-xs text-obsidian-600 hover:text-blue-600 transition-colors" onClick={() => handleEditEquipment(e)} aria-label="Edit equipment"><Edit size={11} /> Edit</button>
+                      <button type="button" className="flex items-center gap-1 text-xs text-obsidian-600 hover:text-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => handleDeleteEquipment(e)} disabled={deletingEquipmentId === e.id} aria-label="Remove equipment"><Trash2 size={11} /> {deletingEquipmentId === e.id ? "Removing..." : "Remove"}</button>
                     </div>
                   </div>
                 ))}
@@ -702,8 +1136,8 @@ export default function AdminPage() {
                   </div>
                   <p className="text-sm text-obsidian-600 dark:text-obsidian-400 leading-relaxed mb-3">{r.comment}</p>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="ghost" className="text-xs gap-1 text-emerald-600" onClick={() => alert(`Approve review ${r.id}`)}><CheckCircle size={11} /> Approve</Button>
-                    <Button size="sm" variant="ghost" className="text-xs gap-1 text-red-500" onClick={() => alert(`Delete review ${r.id}`)}><Trash2 size={11} /> Delete</Button>
+                    <Button size="sm" variant="ghost" className="text-xs gap-1 text-emerald-600" onClick={() => handleApproveReview(r)} disabled={r.verified || processingReviewId === r.id}><CheckCircle size={11} /> {r.verified ? "Approved" : "Approve"}</Button>
+                    <Button size="sm" variant="ghost" className="text-xs gap-1 text-red-500" onClick={() => handleDeleteReview(r)} disabled={processingReviewId === r.id}><Trash2 size={11} /> Delete</Button>
                   </div>
                 </div>
               ))}

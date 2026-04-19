@@ -7,7 +7,7 @@ export interface Service {
   price: number;
   priceUnit: string;
   image: string;
-  category: "wedding" | "event" | "studio" | "outdoor" | "portrait";
+  category: "graduation" | "birthday" | "event" | "model-shoot" | "pre-shoot";
   duration: string;
   includes: string[];
   featured: boolean;

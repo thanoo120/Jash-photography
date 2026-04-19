@@ -13,17 +13,32 @@ export const metadata: Metadata = {
 
 export const revalidate = 300; // Revalidate every 5 minutes
 
-export default async function ServicesPage() {
+type ServicesPageProps = {
+  searchParams?: {
+    category?: string;
+  };
+};
+
+export default async function ServicesPage({ searchParams }: ServicesPageProps) {
   const serviceList = await getServices();
 
   const categories = [
     { key: "all", label: "All Services" },
     { key: "graduation", label: "Graduation" },
-    { key: "pre-shoot", label: "Pre-Shoot" },
+    { key: "birthday", label: "Birthday" },
     { key: "event", label: "Event" },
-    { key: "model-shoot", label: "Model-Shoot" },
-    { key: "Birthday", label: "Birthday" },
+    { key: "model-shoot", label: "Model shoot" },
+    { key: "pre-shoot", label: "Pre-shoot" },
   ];
+
+  const activeCategory = categories.some((cat) => cat.key === searchParams?.category)
+    ? (searchParams?.category as string)
+    : "all";
+
+  const filteredServices =
+    activeCategory === "all"
+      ? serviceList
+      : serviceList.filter((service) => service.category === activeCategory);
 
   return (
     <div className="pt-20">
@@ -50,17 +65,26 @@ export default async function ServicesPage() {
         </div>
       </section>
 
-      {/* Category filters (visual only - client-side filtering could be added) */}
+      {/* Category filters */}
       <section className="sticky top-16 lg:top-20 z-30 bg-cream/95 dark:bg-obsidian-950/95 backdrop-blur-md border-b border-obsidian-200 dark:border-obsidian-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1 overflow-x-auto py-3 scrollbar-hide">
-          {categories.map((cat) => (
-            <span
-              key={cat.key}
-              className="shrink-0 px-4 py-1.5 rounded-full text-xs font-medium cursor-pointer transition-colors border border-obsidian-200 dark:border-obsidian-700 text-obsidian-600 dark:text-obsidian-300 hover:border-gold-500 hover:text-gold-600 dark:hover:text-gold-400"
-            >
-              {cat.label}
-            </span>
-          ))}
+          {categories.map((cat) => {
+            const isActive = activeCategory === cat.key;
+            const href = cat.key === "all" ? "/services" : `/services?category=${cat.key}`;
+            return (
+              <Link
+                key={cat.key}
+                href={href}
+                className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+                  isActive
+                    ? "border-gold-500 bg-gold-50 text-gold-700 dark:bg-gold-900/20 dark:text-gold-400"
+                    : "border-obsidian-200 dark:border-obsidian-700 text-obsidian-600 dark:text-obsidian-300 hover:border-gold-500 hover:text-gold-600 dark:hover:text-gold-400"
+                }`}
+              >
+                {cat.label}
+              </Link>
+            );
+          })}
         </div>
       </section>
 
@@ -68,12 +92,12 @@ export default async function ServicesPage() {
       <section className="py-16 lg:py-20 bg-cream dark:bg-obsidian-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {serviceList.length === 0 && (
+            {filteredServices.length === 0 && (
               <p className="col-span-full text-center text-sm text-obsidian-500 py-12">
-                No services returned from the API. Check backend URL (e.g. NEXT_PUBLIC_API_BASE_URL or NEXT_PUBLIC_API_URL) and database seed data.
+                No services found for this category.
               </p>
             )}
-            {serviceList.map((service, i) => (
+            {filteredServices.map((service, i) => (
               <article
                 key={service.id}
                 className="group bg-white dark:bg-obsidian-900 rounded-sm overflow-hidden border border-obsidian-100 dark:border-obsidian-800 card-hover flex flex-col sm:flex-row"

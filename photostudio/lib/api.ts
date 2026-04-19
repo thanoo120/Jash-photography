@@ -4,10 +4,11 @@ const publicApiUrl = process.env.NEXT_PUBLIC_API_URL
   ? process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "")
   : undefined;
 
+/** Use 127.0.0.1 by default on Windows so Node uses IPv4; avoids ::1 ECONNREFUSED quirks when the API listens on IPv4 only. */
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   (publicApiUrl ? `${publicApiUrl}/api` : undefined) ||
-  "http://localhost:8090/api";
+  "http://127.0.0.1:8090/api";
 
 /** OpenAPI / Swagger UI (same origin as API). */
 export function getSwaggerUiUrl(): string {
@@ -78,11 +79,11 @@ type BackendReview = {
 
 const toCategory = (raw?: string | null): Service["category"] => {
   const value = (raw || "").toLowerCase();
-  if (value.includes("wedding")) return "wedding";
+  if (value.includes("graduation")) return "graduation";
+  if (value.includes("birthday")) return "birthday";
   if (value.includes("event")) return "event";
-  if (value.includes("outdoor")) return "outdoor";
-  if (value.includes("portrait")) return "portrait";
-  return "studio";
+  if (value.includes("model")) return "model-shoot";
+  return "pre-shoot";
 };
 
 const toEquipmentCategory = (raw?: string | null): Equipment["category"] => {
@@ -100,6 +101,24 @@ const toSlug = (text: string): string =>
 // Cache for API responses
 const cache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+function invalidateCacheByPrefix(prefix: string): void {
+  for (const key of cache.keys()) {
+    if (key.startsWith(prefix)) {
+      cache.delete(key);
+    }
+  }
+}
+
+let warnedBackendUnreachable = false;
+
+function isConnectionRefused(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const err = error as { cause?: { code?: string }; message?: string };
+  if (err.cause?.code === "ECONNREFUSED") return true;
+  if (err.message === "fetch failed") return true;
+  return false;
+}
 
 async function fetchJson<T>(path: string): Promise<T | null> {
   const cacheKey = path;
@@ -122,9 +141,32 @@ async function fetchJson<T>(path: string): Promise<T | null> {
     cache.set(cacheKey, { data, timestamp: now });
     return data;
   } catch (error) {
-    console.warn(`API call failed for ${path}:`, error);
-    // Return cached data if available, even if expired
+    if (isConnectionRefused(error)) {
+      if (!warnedBackendUnreachable) {
+        warnedBackendUnreachable = true;
+        console.warn(
+          `[api] Backend not reachable at ${API_BASE_URL}. Start the Spring app (port 8090) or set NEXT_PUBLIC_API_BASE_URL. Further fetch errors are suppressed.`
+        );
+      }
+    } else {
+      console.warn(`API call failed for ${path}:`, error);
+    }
     return cached?.data || null;
+  }
+}
+
+async function fetchJsonFresh<T>(path: string): Promise<T | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+    return (await response.json()) as T;
+  } catch (error) {
+    if (!isConnectionRefused(error)) {
+      console.warn(`Fresh API call failed for ${path}:`, error);
+    }
+    return null;
   }
 }
 
@@ -182,7 +224,7 @@ export async function getServices(): Promise<Service[]> {
 }
 
 export async function getEquipment(): Promise<Equipment[]> {
-  const data = await fetchJson<PagedResponse<BackendEquipment>>("/equipment?page=0&size=50");
+  const data = await fetchJsonFresh<PagedResponse<BackendEquipment>>("/equipment?page=0&size=50");
   if (!data?.content) return [];
 
   return data.content.map((item, index) => ({
@@ -201,6 +243,43 @@ export async function getEquipment(): Promise<Equipment[]> {
       : [],
     featured: index < 4,
   }));
+}
+
+export async function createEquipment(
+  token: string,
+  payload: {
+    name: string;
+    brand: string;
+    description?: string;
+    dailyRentalPrice: number;
+    weeklyRentalPrice: number;
+    totalStock: number;
+    availableStock: number;
+    category: string;
+    thumbnailImage?: string;
+    specifications?: string;
+    active: boolean;
+  }
+): Promise<Equipment | null> {
+  const result = await postJson<BackendEquipment>("/equipment", payload, token);
+  if (!result) return null;
+  invalidateCacheByPrefix("/equipment");
+  return {
+    id: `eq-${result.id}`,
+    name: result.name,
+    category: toEquipmentCategory(result.category),
+    description: result.description,
+    pricePerDay: Number(result.dailyRentalPrice || 0),
+    image:
+      result.thumbnailImage ||
+      "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80",
+    available: (result.availableStock || 0) > 0,
+    brand: result.brand || "Unknown",
+    specs: result.specifications
+      ? result.specifications.split(",").map((x) => x.trim()).filter(Boolean)
+      : [],
+    featured: false,
+  };
 }
 
 function galleryToProduct(item: BackendGallery): Product {
@@ -277,6 +356,75 @@ export async function createService(
   };
 }
 
+export async function updateServiceAdmin(
+  token: string,
+  serviceId: number,
+  payload: {
+    name: string;
+    description: string;
+    price: number;
+    durationMinutes?: number;
+    serviceType?: string;
+    thumbnailImage?: string;
+    includes?: string;
+  }
+): Promise<Service | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/services/${serviceId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`PUT /services/${serviceId} failed with status ${response.status}:`, errorText);
+      return null;
+    }
+
+    const rawText = await response.text();
+    if (rawText.trim()) {
+      const result = JSON.parse(rawText) as BackendService;
+      return {
+        id: `svc-${result.id}`,
+        title: result.name,
+        slug: toSlug(result.name),
+        description: result.description,
+        longDescription: result.description,
+        price: Number(result.price || 0),
+        priceUnit: "session",
+        image: result.thumbnailImage || "https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=800&q=80",
+        category: toCategory(result.serviceType),
+        duration: result.durationMinutes ? `${result.durationMinutes} mins` : "Custom",
+        includes: result.includes ? result.includes.split(",").map((x) => x.trim()).filter(Boolean) : [],
+        featured: false,
+      };
+    }
+
+    // Some backends return 200/204 with no JSON body for updates.
+    return {
+      id: `svc-${serviceId}`,
+      title: payload.name,
+      slug: toSlug(payload.name),
+      description: payload.description,
+      longDescription: payload.description,
+      price: Number(payload.price || 0),
+      priceUnit: "session",
+      image: payload.thumbnailImage || "https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=800&q=80",
+      category: toCategory(payload.serviceType),
+      duration: payload.durationMinutes ? `${payload.durationMinutes} mins` : "Custom",
+      includes: payload.includes ? payload.includes.split(",").map((x) => x.trim()).filter(Boolean) : [],
+      featured: false,
+    };
+  } catch (error) {
+    console.error(`PUT /services/${serviceId} error:`, error);
+    return null;
+  }
+}
+
 function mapBackendReview(r: BackendReview): Review {
   const dateStr = r.createdAt?.split("T")[0] ?? "";
   return {
@@ -294,24 +442,13 @@ function mapBackendReview(r: BackendReview): Review {
 }
 
 export async function getAggregatedReviews(): Promise<Review[]> {
-  // Try to get reviews from a dedicated endpoint first
-  const reviewsData = await fetchJson<PagedResponse<BackendReview>>("/reviews?page=0&size=50");
-  if (reviewsData?.content) {
-    return reviewsData.content
-      .slice(0, 10) // Limit to 10 reviews for performance
-      .map(mapBackendReview)
-      .sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
-  }
-
-  // Fallback to the old inefficient method if dedicated endpoint doesn't exist
-  const svcPage = await fetchJson<PagedResponse<BackendService>>("/services?page=0&size=5");
+  const svcPage = await fetchJson<PagedResponse<BackendService>>("/services?page=0&size=100");
   if (!svcPage?.content?.length) return [];
 
   const merged: Review[] = [];
-  // Only fetch reviews for first few services to limit API calls
-  for (const svc of svcPage.content.slice(0, 3)) {
+  for (const svc of svcPage.content) {
     const revPage = await fetchJson<PagedResponse<BackendReview>>(
-      `/reviews/service/${svc.id}?page=0&size=10`
+      `/reviews/service/${svc.id}?page=0&size=50`
     );
     if (revPage?.content) {
       merged.push(...revPage.content.map(mapBackendReview));
@@ -320,7 +457,20 @@ export async function getAggregatedReviews(): Promise<Review[]> {
 
   return merged
     .sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
-    .slice(0, 10); // Limit total reviews
+    .slice(0, 50);
+}
+
+// NEW: Function to get pending reviews (only for admin)
+export async function getPendingReviewsForAdmin(token: string): Promise<Review[]> {
+  const data = await getJsonAuth<PagedResponse<BackendReview>>(
+    "/reviews/pending?page=0&size=100",
+    token
+  );
+  if (!data?.content) return [];
+  
+  return data.content
+    .map(mapBackendReview)
+    .sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
 }
 
 export async function submitReview(
@@ -411,6 +561,23 @@ async function patchJsonAuth(path: string, token: string): Promise<boolean> {
   }
 }
 
+async function putJsonAuth<T>(path: string, token: string, body: unknown): Promise<T | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) return null;
+    return (await response.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
 export type DashboardStats = {
   totalUsers: number;
   totalServices: number;
@@ -468,6 +635,44 @@ export async function deleteServiceAdmin(token: string, serviceId: number): Prom
 
 export async function deleteEquipmentAdmin(token: string, equipmentId: number): Promise<boolean> {
   return deleteJsonAuth(`/equipment/${equipmentId}`, token);
+}
+
+export async function updateEquipmentAdmin(
+  token: string,
+  equipmentId: number,
+  payload: {
+    name: string;
+    brand: string;
+    description?: string;
+    dailyRentalPrice: number;
+    weeklyRentalPrice: number;
+    totalStock: number;
+    availableStock: number;
+    category: string;
+    thumbnailImage?: string;
+    specifications?: string;
+    active: boolean;
+  }
+): Promise<Equipment | null> {
+  const result = await putJsonAuth<BackendEquipment>(`/equipment/${equipmentId}`, token, payload);
+  if (!result) return null;
+  invalidateCacheByPrefix("/equipment");
+  return {
+    id: `eq-${result.id}`,
+    name: result.name,
+    category: toEquipmentCategory(result.category),
+    description: result.description,
+    pricePerDay: Number(result.dailyRentalPrice || 0),
+    image:
+      result.thumbnailImage ||
+      "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80",
+    available: (result.availableStock || 0) > 0,
+    brand: result.brand || "Unknown",
+    specs: result.specifications
+      ? result.specifications.split(",").map((x) => x.trim()).filter(Boolean)
+      : [],
+    featured: false,
+  };
 }
 
 export async function deleteGalleryAdmin(token: string, galleryId: number): Promise<boolean> {

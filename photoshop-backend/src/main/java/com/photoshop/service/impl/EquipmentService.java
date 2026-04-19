@@ -15,6 +15,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -110,6 +111,9 @@ public class EquipmentService {
     private EquipmentResponse toResponse(Equipment equipment) {
         Double avgRating = reviewRepository.getAverageRatingForEquipment(equipment.getId());
         long reviewCount = equipment.getReviews().stream().filter(r -> r.isApproved()).count();
+        List<String> galleryImages = equipment.getGalleryImages() == null
+            ? List.of()
+            : new ArrayList<>(equipment.getGalleryImages());
         return EquipmentResponse.builder()
             .id(equipment.getId())
             .name(equipment.getName())
@@ -121,7 +125,7 @@ public class EquipmentService {
             .availableStock(equipment.getAvailableStock())
             .category(equipment.getCategory())
             .thumbnailImage(equipment.getThumbnailImage())
-            .galleryImages(equipment.getGalleryImages())
+            .galleryImages(galleryImages)
             .specifications(equipment.getSpecifications())
             .active(equipment.isActive())
             .averageRating(avgRating)

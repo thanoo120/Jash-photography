@@ -22,8 +22,17 @@ const categories = [
   { key: "accessory", label: "Accessories" },
 ];
 
-export default async function EquipmentPage() {
+type EquipmentPageProps = {
+  searchParams?: {
+    category?: string;
+  };
+};
+
+export default async function EquipmentPage({ searchParams }: EquipmentPageProps) {
   const equipmentList = await getEquipment();
+  const activeCategory = categories.some((c) => c.key === searchParams?.category)
+    ? (searchParams?.category as string)
+    : "all";
 
   const byCategory = (cat: string) =>
     cat === "all" ? equipmentList : equipmentList.filter((e) => e.category === cat);
@@ -63,14 +72,23 @@ export default async function EquipmentPage() {
       {/* Filter bar */}
       <section className="sticky top-16 lg:top-20 z-30 bg-cream/95 dark:bg-obsidian-950/95 backdrop-blur-md border-b border-obsidian-200 dark:border-obsidian-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-2 overflow-x-auto py-3">
-          {categories.map((cat) => (
-            <span
-              key={cat.key}
-              className="shrink-0 px-4 py-1.5 rounded-full text-xs font-medium cursor-pointer transition-colors border border-obsidian-200 dark:border-obsidian-700 text-obsidian-600 dark:text-obsidian-300 hover:border-gold-500 hover:text-gold-600 dark:hover:text-gold-400"
-            >
-              {cat.label}
-            </span>
-          ))}
+          {categories.map((cat) => {
+            const isActive = activeCategory === cat.key;
+            const href = cat.key === "all" ? "/equipment" : `/equipment?category=${cat.key}`;
+            return (
+              <Link
+                key={cat.key}
+                href={href}
+                className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+                  isActive
+                    ? "border-gold-500 bg-gold-50 text-gold-700 dark:bg-gold-900/20 dark:text-gold-400"
+                    : "border-obsidian-200 dark:border-obsidian-700 text-obsidian-600 dark:text-obsidian-300 hover:border-gold-500 hover:text-gold-600 dark:hover:text-gold-400"
+                }`}
+              >
+                {cat.label}
+              </Link>
+            );
+          })}
         </div>
       </section>
 
@@ -83,7 +101,7 @@ export default async function EquipmentPage() {
                 No equipment returned from the API. Check backend and NEXT_PUBLIC_API_BASE_URL or NEXT_PUBLIC_API_URL.
               </p>
             )}
-            {byCategory("all").map((item) => (
+            {byCategory(activeCategory).map((item) => (
               <article
                 key={item.id}
                 className="card-hover group bg-white dark:bg-obsidian-900 rounded-sm border border-obsidian-100 dark:border-obsidian-800 overflow-hidden"
@@ -136,13 +154,17 @@ export default async function EquipmentPage() {
                       </span>
                       <span className="text-xs text-obsidian-400"> / day</span>
                     </div>
-                    <Button
-                      size="sm"
-                      variant={item.available ? "primary" : "outline"}
-                      disabled={!item.available}
+                    <Link
+                      href={
+                        item.available
+                          ? `/booking?equipment=${encodeURIComponent(item.id)}`
+                          : `/contact?subject=${encodeURIComponent(`Notify me: ${item.name}`)}`
+                      }
                     >
-                      {item.available ? "Rent Now" : "Notify Me"}
-                    </Button>
+                      <Button size="sm" variant={item.available ? "primary" : "outline"}>
+                        {item.available ? "Rent Now" : "Notify Me"}
+                      </Button>
+                    </Link>
                   </div>
                 </div>
               </article>

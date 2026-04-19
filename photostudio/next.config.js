@@ -24,8 +24,25 @@ const nextConfig = {
         port: "8090",
       },
       {
+        protocol: "http",
+        hostname: "127.0.0.1",
+        port: "8090",
+      },
+      {
         protocol: "https",
         hostname: "th.bing.com",
+      },
+      {
+        protocol: "https",
+        hostname: "thumbs.dreamstime.com",
+      },
+      {
+        protocol: "https",
+        hostname: "i1.adis.ws",
+      },
+      {
+        protocol: "https",
+        hostname: "s3-ap-southeast-1.amazonaws.com",
       },
     ],
     // Optimize images further
@@ -35,10 +52,18 @@ const nextConfig = {
   compress: true,
   // Optimize build output
   swcMinify: true,
-  // Enable experimental features for better performance
   experimental: {
     optimizePackageImports: ["lucide-react"],
-    scrollRestoration: true,
+  },
+  // On Windows + OneDrive, file watchers can miss changes; optional: set NEXT_WEBPACK_USEPOLLING=1
+  webpack: (config, { dev }) => {
+    if (dev && process.env.NEXT_WEBPACK_USEPOLLING === "1") {
+      config.watchOptions = {
+        poll: 1000,
+        aggregateTimeout: 300,
+      };
+    }
+    return config;
   },
 };
 

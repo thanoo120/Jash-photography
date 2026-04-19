@@ -60,6 +60,11 @@ public class Service extends BaseEntity {
     private List<Review> reviews = new ArrayList<>();
 
     public enum ServiceType {
-        PORTRAIT, WEDDING, CORPORATE, PRODUCT, EVENT, FAMILY, FASHION, REAL_ESTATE
+        PRE_SHOOT,
+        GRADUATION,
+        BIRTHDAY,
+        EVENT,
+        MODEL_SHOOT,
+
     }
 }

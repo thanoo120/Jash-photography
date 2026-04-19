@@ -3,18 +3,18 @@ import { Camera, Instagram, Facebook, Twitter, Mail, Phone, MapPin } from "lucid
 
 export default function Footer() {
   return (
-    <footer className="bg-obsidian-950 text-obsidian-200">
+    <footer className="bg-obsidian-950 text-obsidian-200 soft-gradient">
       {/* Main footer */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
           {/* Brand */}
-          <div className="lg:col-span-1">
-            <Link href="/" className="flex items-center gap-2.5 mb-4">
-              <div className="w-8 h-8 bg-gold-500 rounded-sm flex items-center justify-center">
+          <div className="lg:col-span-1 animate-in">
+            <Link href="/" className="flex items-center gap-2.5 mb-4 hover-lift">
+              <div className="w-8 h-8 bg-gold-500 rounded-sm flex items-center justify-center shadow-[0_10px_28px_rgba(37,150,190,0.3)]">
                 <Camera size={16} className="text-obsidian-950" />
               </div>
               <span className="font-display text-xl font-bold tracking-tight text-white">
-                JASH STUDIO<span className="text-gold-500"> Studio</span>
+                JASH<span className="text-gold-500"> Studio</span>
               </span>
             </Link>
             <p className="text-sm text-obsidian-400 leading-relaxed mb-6">
@@ -26,7 +26,7 @@ export default function Footer() {
                 <a
                   key={i}
                   href="#"
-                  className="w-9 h-9 rounded-sm bg-obsidian-800 hover:bg-gold-500 flex items-center justify-center text-obsidian-300 hover:text-obsidian-950 transition-all duration-200"
+                  className="w-9 h-9 rounded-sm bg-obsidian-800 hover:bg-gold-500 flex items-center justify-center text-obsidian-300 hover:text-obsidian-950 transition-all duration-200 hover:-translate-y-0.5"
                 >
                   <Icon size={16} />
                 </a>
@@ -35,12 +35,12 @@ export default function Footer() {
           </div>
 
           {/* Services */}
-          <div>
+          <div className="animate-in animate-in-delay-1">
             <h3 className="font-display text-lg font-semibold text-white mb-4">Services</h3>
             <ul className="space-y-2.5">
               {["Wedding Photography", "Studio Portraits", "Event Coverage", "Outdoor Shoots", "Commercial", "Equipment Rental"].map((item) => (
                 <li key={item}>
-                  <Link href="/services" className="text-sm text-obsidian-400 hover:text-gold-400 transition-colors">
+                  <Link href="/services" className="text-sm text-obsidian-400 hover:text-gold-400 transition-colors underline-animate">
                     {item}
                   </Link>
                 </li>
@@ -49,7 +49,7 @@ export default function Footer() {
           </div>
 
           {/* Quick Links */}
-          <div>
+          <div className="animate-in animate-in-delay-1">
             <h3 className="font-display text-lg font-semibold text-white mb-4">Quick Links</h3>
             <ul className="space-y-2.5">
               {[
@@ -61,7 +61,7 @@ export default function Footer() {
                 { label: "Admin Panel", href: "/admin" },
               ].map((link) => (
                 <li key={link.href}>
-                  <Link href={link.href} className="text-sm text-obsidian-400 hover:text-gold-400 transition-colors">
+                  <Link href={link.href} className="text-sm text-obsidian-400 hover:text-gold-400 transition-colors underline-animate">
                     {link.label}
                   </Link>
                 </li>
@@ -70,7 +70,7 @@ export default function Footer() {
           </div>
 
           {/* Contact */}
-          <div>
+          <div className="animate-in animate-in-delay-2">
             <h3 className="font-display text-lg font-semibold text-white mb-4">Contact</h3>
             <ul className="space-y-3">
               <li className="flex items-start gap-3">
@@ -92,7 +92,7 @@ export default function Footer() {
                 </a>
               </li>
             </ul>
-            <div className="mt-6 p-3 bg-obsidian-900 rounded-sm">
+            <div className="mt-6 p-3 bg-obsidian-900/90 border border-obsidian-800 rounded-sm">
               <p className="text-xs text-obsidian-400">
                 <span className="text-gold-500 font-medium">Studio Hours</span><br />
                 Mon–Fri: 9am – 7pm<br />

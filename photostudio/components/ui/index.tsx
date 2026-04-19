@@ -20,17 +20,17 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={cn(
-          "inline-flex items-center justify-center gap-2 font-medium tracking-wide transition-all duration-200 rounded-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
+          "inline-flex items-center justify-center gap-2 font-medium tracking-wide rounded-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent hover-lift",
           {
-            "btn-gold text-obsidian-950 font-semibold": variant === "primary",
-            "bg-obsidian-900 text-obsidian-50 hover:bg-obsidian-800 dark:bg-obsidian-100 dark:text-obsidian-900 dark:hover:bg-obsidian-200": variant === "secondary",
-            "border border-obsidian-300 dark:border-obsidian-600 text-obsidian-700 dark:text-obsidian-200 hover:border-gold-500 hover:text-gold-600": variant === "outline",
-            "text-obsidian-600 dark:text-obsidian-300 hover:text-obsidian-900 dark:hover:text-white": variant === "ghost",
+            "btn-gold text-obsidian-950 font-semibold shadow-[0_10px_28px_rgba(37,150,190,0.28)]": variant === "primary",
+            "bg-obsidian-900 text-obsidian-50 hover:bg-obsidian-800 dark:bg-obsidian-100 dark:text-obsidian-900 dark:hover:bg-obsidian-200 shadow-sm": variant === "secondary",
+            "border border-obsidian-300 dark:border-obsidian-600 text-obsidian-700 dark:text-obsidian-200 hover:border-gold-500 hover:text-gold-600 bg-white/80 dark:bg-obsidian-900/70": variant === "outline",
+            "text-obsidian-600 dark:text-obsidian-300 hover:text-obsidian-900 dark:hover:text-white hover:bg-obsidian-100/70 dark:hover:bg-obsidian-800/55": variant === "ghost",
           },
           {
-            "text-xs px-3 py-1.5": size === "sm",
-            "text-sm px-5 py-2.5": size === "md",
-            "text-base px-7 py-3.5": size === "lg",
+            "text-xs px-3 py-1.5 min-h-8": size === "sm",
+            "text-sm px-5 py-2.5 min-h-10": size === "md",
+            "text-base px-7 py-3.5 min-h-12": size === "lg",
           },
           className
         )}
@@ -145,7 +145,7 @@ export function Input({ label, error, className, id, ...props }: InputProps) {
       <input
         id={id}
         className={cn(
-          "w-full px-4 py-3 rounded-sm text-sm bg-white dark:bg-obsidian-900 border border-obsidian-200 dark:border-obsidian-700 text-obsidian-900 dark:text-obsidian-100 placeholder-obsidian-400 dark:placeholder-obsidian-500 focus:outline-none focus:ring-2 focus:ring-gold-400 focus:border-transparent transition-all",
+          "w-full px-4 py-3 rounded-sm text-sm bg-white/90 dark:bg-obsidian-900/85 border border-obsidian-200 dark:border-obsidian-700 text-obsidian-900 dark:text-obsidian-100 placeholder-obsidian-400 dark:placeholder-obsidian-500 focus:outline-none focus:ring-2 focus:ring-gold-400/70 focus:border-transparent shadow-sm hover:border-obsidian-300 dark:hover:border-obsidian-600",
           error && "border-red-400 focus:ring-red-400",
           className
         )}
@@ -172,7 +172,7 @@ export function Textarea({ label, error, className, id, ...props }: TextareaProp
       <textarea
         id={id}
         className={cn(
-          "w-full px-4 py-3 rounded-sm text-sm bg-white dark:bg-obsidian-900 border border-obsidian-200 dark:border-obsidian-700 text-obsidian-900 dark:text-obsidian-100 placeholder-obsidian-400 dark:placeholder-obsidian-500 focus:outline-none focus:ring-2 focus:ring-gold-400 focus:border-transparent transition-all resize-none",
+          "w-full px-4 py-3 rounded-sm text-sm bg-white/90 dark:bg-obsidian-900/85 border border-obsidian-200 dark:border-obsidian-700 text-obsidian-900 dark:text-obsidian-100 placeholder-obsidian-400 dark:placeholder-obsidian-500 focus:outline-none focus:ring-2 focus:ring-gold-400/70 focus:border-transparent shadow-sm hover:border-obsidian-300 dark:hover:border-obsidian-600 resize-none",
           error && "border-red-400 focus:ring-red-400",
           className
         )}
@@ -199,7 +199,7 @@ export function Select({ label, options, className, id, ...props }: SelectProps)
       <select
         id={id}
         className={cn(
-          "w-full px-4 py-3 rounded-sm text-sm bg-white dark:bg-obsidian-900 border border-obsidian-200 dark:border-obsidian-700 text-obsidian-900 dark:text-obsidian-100 focus:outline-none focus:ring-2 focus:ring-gold-400 focus:border-transparent transition-all",
+          "w-full px-4 py-3 rounded-sm text-sm bg-white/90 dark:bg-obsidian-900/85 border border-obsidian-200 dark:border-obsidian-700 text-obsidian-900 dark:text-obsidian-100 focus:outline-none focus:ring-2 focus:ring-gold-400/70 focus:border-transparent shadow-sm hover:border-obsidian-300 dark:hover:border-obsidian-600",
           className
         )}
         {...props}
