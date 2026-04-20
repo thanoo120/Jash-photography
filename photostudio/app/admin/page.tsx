@@ -9,7 +9,7 @@ import {
   Eye, Edit, Trash2, ChevronRight, Bell, CheckCircle,
 } from "lucide-react";
 import { Button, Badge } from "@/components/ui/index";
-import { createEquipment, createGalleryProduct, getAggregatedReviews, getEquipment, getGalleryProducts, getServices, createService, deleteEquipmentAdmin, updateEquipmentAdmin, deleteServiceAdmin, updateServiceAdmin, getPendingReviewsAdmin, approveReviewAdmin, deleteReviewAdmin } from "@/lib/api";
+import { createEquipment, createGalleryProduct, getAggregatedReviews, getEquipment, getGalleryProducts, getServices, createService, deleteEquipmentAdmin, updateEquipmentAdmin, deleteServiceAdmin, updateServiceAdmin, getPendingReviewsAdmin, approveReviewAdmin, deleteReviewAdmin, deleteGalleryAdmin } from "@/lib/api";
 import type { Equipment, Product, Review, Service } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -32,6 +32,8 @@ const recentBookings = [
   { id: "BK-0045", client: "Priya Nair", service: "Commercial", date: "2025-04-22", status: "cancelled", amount: 800 },
 ];
 
+const HERO_SLIDE_PREFIX = "hero-slide:";
+
 export default function AdminPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
@@ -53,6 +55,11 @@ export default function AdminPage() {
   const [savingProduct, setSavingProduct] = useState(false);
   const [productMessage, setProductMessage] = useState<string | null>(null);
   const [productError, setProductError] = useState<string | null>(null);
+  const [newHeroImageUrl, setNewHeroImageUrl] = useState("");
+  const [savingHeroImage, setSavingHeroImage] = useState(false);
+  const [deletingHeroImageId, setDeletingHeroImageId] = useState<string | null>(null);
+  const [heroImageMessage, setHeroImageMessage] = useState<string | null>(null);
+  const [heroImageError, setHeroImageError] = useState<string | null>(null);
   const [newService, setNewService] = useState({
     name: "",
     description: "",
@@ -343,6 +350,83 @@ export default function AdminPage() {
     });
   }
 
+  function parseGalleryId(rawId: string): number | null {
+    const numericId = Number(rawId.replace("gal-", ""));
+    return Number.isFinite(numericId) ? numericId : null;
+  }
+
+  function isHeroSlideProduct(product: Product): boolean {
+    return product.name.toLowerCase().startsWith(HERO_SLIDE_PREFIX);
+  }
+
+  async function handleAddHeroImage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setHeroImageError(null);
+    setHeroImageMessage(null);
+
+    if (!newHeroImageUrl.trim()) {
+      setHeroImageError("Please add a valid image URL.");
+      return;
+    }
+
+    const token = getAccessToken();
+    if (!token) {
+      setHeroImageError("You must be logged in to add hero images.");
+      return;
+    }
+
+    setSavingHeroImage(true);
+    const created = await createGalleryProduct(token, {
+      title: `${HERO_SLIDE_PREFIX}${Date.now()}`,
+      description: "Homepage hero slideshow image",
+      category: "PRODUCT",
+      imageUrl: newHeroImageUrl.trim(),
+      featured: true,
+      active: true,
+    });
+    setSavingHeroImage(false);
+
+    if (!created) {
+      setHeroImageError("Unable to save hero image. Please verify your image URL and backend API.");
+      return;
+    }
+
+    setProducts((current) => [created, ...current]);
+    setHeroImageMessage("Hero image added successfully.");
+    setNewHeroImageUrl("");
+  }
+
+  async function handleDeleteHeroImage(product: Product) {
+    const token = getAccessToken();
+    if (!token) {
+      setHeroImageError("You must be logged in to remove hero images.");
+      return;
+    }
+
+    const galleryId = parseGalleryId(product.id);
+    if (!galleryId) {
+      setHeroImageError("Unable to remove hero image because its id is invalid.");
+      return;
+    }
+
+    const confirmed = window.confirm("Remove this hero slide image?");
+    if (!confirmed) return;
+
+    setHeroImageError(null);
+    setHeroImageMessage(null);
+    setDeletingHeroImageId(product.id);
+    const removed = await deleteGalleryAdmin(token, galleryId);
+    setDeletingHeroImageId(null);
+
+    if (!removed) {
+      setHeroImageError("Unable to remove hero image. Please try again.");
+      return;
+    }
+
+    setProducts((current) => current.filter((item) => item.id !== product.id));
+    setHeroImageMessage("Hero image removed.");
+  }
+
   async function handleAddEquipment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setEquipmentError(null);
@@ -493,6 +577,16 @@ export default function AdminPage() {
       { id: "reviews", label: "Reviews", icon: MessageSquare, count: reviews.length },
     ],
     [services.length, equipment.length, products.length, reviews.length]
+  );
+
+  const heroSlideProducts = useMemo(
+    () => products.filter((product) => isHeroSlideProduct(product)),
+    [products]
+  );
+
+  const catalogProducts = useMemo(
+    () => products.filter((product) => !isHeroSlideProduct(product)),
+    [products]
   );
 
   if (authorized === false) {
@@ -992,7 +1086,58 @@ export default function AdminPage() {
               <div className="flex flex-col gap-4 mb-6 rounded-sm border border-obsidian-200 dark:border-obsidian-800 bg-white dark:bg-obsidian-900 p-5 shadow-sm">
                 <div className="flex items-center justify-between gap-4 flex-wrap">
                   <div>
-                    <p className="text-sm text-obsidian-500 dark:text-obsidian-400">{products.length} products</p>
+                    <p className="text-sm text-obsidian-500 dark:text-obsidian-400">{heroSlideProducts.length} hero slides</p>
+                    <p className="text-xs text-obsidian-400 dark:text-obsidian-500 mt-1">
+                      Add images here to control the homepage hero slideshow.
+                    </p>
+                  </div>
+                  <Button size="sm" type="submit" form="add-hero-image-form" disabled={savingHeroImage} className="gap-2">
+                    {savingHeroImage ? "Saving..." : "+ Add Hero Image"}
+                  </Button>
+                </div>
+                <form id="add-hero-image-form" onSubmit={handleAddHeroImage} className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3">
+                  <input
+                    value={newHeroImageUrl}
+                    onChange={(event) => setNewHeroImageUrl(event.target.value)}
+                    className="w-full rounded-sm border border-obsidian-200 bg-white dark:bg-obsidian-950 px-3 py-2 text-sm text-obsidian-900 dark:text-obsidian-100"
+                    placeholder="https://... (hero image URL)"
+                  />
+                  <Button type="submit" disabled={savingHeroImage}>
+                    {savingHeroImage ? "Saving..." : "Save Slide"}
+                  </Button>
+                </form>
+                {heroImageError && <p className="text-xs text-red-500">{heroImageError}</p>}
+                {heroImageMessage && <p className="text-xs text-emerald-600">{heroImageMessage}</p>}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {heroSlideProducts.map((slide) => (
+                    <div key={slide.id} className="rounded-sm border border-obsidian-200 dark:border-obsidian-800 bg-obsidian-50 dark:bg-obsidian-950 p-3">
+                      <p className="text-xs text-obsidian-500 truncate mb-2">{slide.images[0]}</p>
+                      <div className="flex items-center justify-between gap-2">
+                        <Badge variant="featured">Hero Slide</Badge>
+                        <button
+                          type="button"
+                          className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded text-obsidian-500 hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={() => handleDeleteHeroImage(slide)}
+                          disabled={deletingHeroImageId === slide.id}
+                          aria-label="Delete hero image"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {heroSlideProducts.length === 0 && (
+                    <p className="text-xs text-obsidian-500 col-span-full">
+                      No hero slides yet. Add at least one image URL to power the homepage slideshow.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-4 mb-6 rounded-sm border border-obsidian-200 dark:border-obsidian-800 bg-white dark:bg-obsidian-900 p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div>
+                    <p className="text-sm text-obsidian-500 dark:text-obsidian-400">{catalogProducts.length} products</p>
                     <p className="text-xs text-obsidian-400 dark:text-obsidian-500 mt-1">Add a new gallery product and save it to the backend.</p>
                   </div>
                   <Button size="sm" type="submit" form="add-product-form" disabled={savingProduct} className="gap-2">
@@ -1089,7 +1234,7 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {products.map((p) => (
+                    {catalogProducts.map((p) => (
                       <tr key={p.id} className="border-b border-obsidian-100 dark:border-obsidian-800 hover:bg-obsidian-50 dark:hover:bg-obsidian-800/30">
                         <td className="px-4 py-3 text-sm font-medium text-obsidian-800 dark:text-obsidian-200">{p.name}</td>
                         <td className="px-4 py-3 text-xs text-obsidian-500 capitalize">{p.category}</td>

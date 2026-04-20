@@ -1,7 +1,13 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Play, Star, Camera, Package, MapPin } from "lucide-react";
+import { ArrowRight, Play, Star, Camera, Package, MapPin, Sparkles } from "lucide-react";
 import { Button, SectionHeader, StarRating } from "@/components/ui/index";
+import HeroSlideshow from "@/components/equipment/HeroSlideshow";
+import heroImg1 from "@/lib/assests/hero/image1.png";
+import heroImg2 from "@/lib/assests/hero/image2.png";
+import heroImg4 from "@/lib/assests/hero/4.png";
+import heroImg5 from "@/lib/assests/hero/5.png";
+import heroImg6 from "@/lib/assests/hero/6.png";
 import {
   getAggregatedReviews,
   getEquipment,
@@ -44,111 +50,104 @@ export default async function HomePage() {
   const satisfiedRate = reviewsList.length > 0 ? Math.min(99, Math.round((reviewAvg / 5) * 100)) : 98;
   const coverageLabel = equipmentList.length > 0 ? `${equipmentList.length}+ Gear Items` : "All Island";
 
+  const adminHeroImages = galleryList
+    .filter((p) => p.name.toLowerCase().startsWith("hero-slide:"))
+    .flatMap((p) => p.images || [])
+    .filter(Boolean);
+  const temporaryLocalHeroImages = [heroImg1.src, heroImg2.src, heroImg4.src, heroImg5.src, heroImg6.src];
+  const galleryHeroImages = galleryList
+    .filter((p) => !p.name.toLowerCase().startsWith("hero-slide:"))
+    .flatMap((p) => p.images || [])
+    .filter(Boolean);
+  const equipmentHeroImages = equipmentList.map((e) => e.image).filter(Boolean);
+  const fallbackImages = Array.from(new Set([...temporaryLocalHeroImages, ...galleryHeroImages, ...equipmentHeroImages])).slice(0, 8);
+  const uniqueAdminImages = Array.from(new Set(adminHeroImages)).slice(0, 8);
+  const heroSlideshowImages =
+    uniqueAdminImages.length >= 2
+      ? uniqueAdminImages
+      : fallbackImages;
+
   return (
     <div className="overflow-hidden">
-      {/* ── HERO ────────────────────────────────────────────────────── */}
-      <section className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-obsidian-50 via-blue-50 to-obsidian-50">
-        <div className="absolute inset-0 noise-overlay pointer-events-none" />
-        <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-white/80 to-transparent opacity-80 pointer-events-none" />
-        <div className="absolute top-24 left-1/4 w-96 h-96 bg-gold-400/10 rounded-full blur-3xl animate-float" />
-        <div className="absolute bottom-32 right-1/4 w-80 h-80 bg-gold-400/10 rounded-full blur-3xl animate-float opacity-70" />
+      {/* ── HERO (left copy + right animated slideshow; images from gallery + equipment = admin-editable) ── */}
+      <section className="relative min-h-screen flex items-center overflow-hidden bg-[#eef1f4]">
+        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_80%_60%_at_100%_0%,rgba(45,137,196,0.08),transparent_50%)]" />
 
-        {/* Decorative lines - Left */}
-        <div className="absolute left-8 top-1/2 -translate-y-1/2 hidden xl:flex flex-col gap-1">
-          {[...Array(8)].map((_, i) => {
-            const opacityClasses = ['opacity-100', 'opacity-90', 'opacity-80', 'opacity-70', 'opacity-60', 'opacity-50', 'opacity-40', 'opacity-30'];
-            return (
-              <div key={i} className={`w-px h-8 bg-gold-500/40 ${opacityClasses[i]} animate-fade-in`} />
-            );
-          })}
-        </div>
-
-        {/* Decorative lines - Right */}
-        <div className="absolute right-8 top-1/2 -translate-y-1/2 hidden xl:flex flex-col gap-1">
-          {[...Array(8)].map((_, i) => {
-            const opacityClasses = ['opacity-30', 'opacity-40', 'opacity-50', 'opacity-60', 'opacity-70', 'opacity-80', 'opacity-90', 'opacity-100'];
-            return (
-              <div key={i} className={`w-px h-8 bg-gold-500/40 ${opacityClasses[i]} animate-fade-in`} />
-            );
-          })}
-        </div>
-
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16 lg:pt-28 lg:pb-20 w-full">
-          <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
-            <div className="text-center lg:text-left">
-              <p className="text-xs md:text-sm font-mono tracking-[0.45em] uppercase text-gold-500 mb-6 opacity-0 animate-fade-up">
-                ✨ Jash Photography
+        <div className="relative z-10 max-w-[1750px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 pt-24 pb-20 lg:pt-20 lg:pb-20 w-full">
+          <div className="grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-10 lg:gap-12 items-center">
+            <div className="text-center lg:text-left order-2 lg:order-1">
+              <p className="flex items-center justify-center lg:justify-start gap-2 text-xs md:text-sm font-semibold tracking-[0.35em] uppercase text-sky-600 mb-6">
+                <Sparkles className="h-4 w-4 text-amber-500 shrink-0" aria-hidden />
+                Jash Photography
               </p>
 
-              <h1 className="font-display text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold text-obsidian-900 leading-[1.05] mb-6 tracking-tight">
-                <span className="block opacity-0 animate-fade-up">Your Story.</span>
-                <span className="block bg-gradient-to-r from-gold-500 via-blue-500 to-gold-600 bg-clip-text text-transparent opacity-0 animate-fade-up delay-100">
-                  Our Camera.
-                </span>
+              <h1 className="font-display text-5xl sm:text-6xl md:text-7xl font-bold text-obsidian-900 leading-[1.08] mb-6 tracking-tight">
+                <span className="block">Your Story.</span>
+                <span className="block text-[#2D89C4]">Our Camera.</span>
               </h1>
 
-              <p className="text-base sm:text-lg md:text-xl lg:text-[1.35rem] text-obsidian-600 max-w-xl lg:max-w-2xl mx-auto lg:mx-0 mb-10 leading-relaxed opacity-0 animate-blur-in delay-150">
+              <p className="text-base sm:text-lg text-obsidian-600 max-w-xl lg:max-w-lg mx-auto lg:mx-0 mb-10 leading-relaxed">
                 We make you feel confident in front of the lens. Professional shoots,
                 equipment support, and a smooth booking flow across Sri Lanka.
               </p>
 
               <div className="flex flex-col sm:flex-row items-center lg:items-start justify-center lg:justify-start gap-4">
                 <Link href="/booking">
-                  <Button size="lg" variant="primary" className="gap-2 animate-scale-in hover:animate-glow shadow-2xl hover:shadow-2xl transition-all duration-300 delay-200">
+                  <Button
+                    size="lg"
+                    variant="primary"
+                    className="gap-2 !bg-[#2D89C4] hover:!bg-[#2578ad] !text-white !shadow-[0_12px_32px_rgba(45,137,196,0.35)] border-0"
+                  >
                     Book a Session
                     <ArrowRight size={16} />
                   </Button>
                 </Link>
                 <Link href="/services">
-                  <Button size="lg" variant="ghost" className="text-obsidian-900 hover:text-gold-500 gap-2 animate-scale-in border-2 border-obsidian-200 hover:border-gold-500 transition-all duration-300 delay-300">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="gap-2 bg-white border-obsidian-200 text-obsidian-900 hover:border-[#2D89C4] hover:text-[#2D89C4]"
+                  >
                     <Play size={14} className="fill-current" />
                     Explore Services
                   </Button>
                 </Link>
               </div>
 
-              <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-2xl mx-auto lg:mx-0 border-t border-gold-200/30 pt-8 justify-items-center lg:justify-items-start text-center lg:text-left">
+              <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-2xl mx-auto lg:mx-0 border-t border-obsidian-200/80 pt-8 justify-items-center lg:justify-items-start text-center lg:text-left">
                 {[
                   { value: `${sessionsShot.toLocaleString()}+`, label: "Sessions Shot" },
                   { value: `${satisfiedRate}%`, label: "Client Satisfaction" },
                   { value: coverageLabel, label: "Coverage" },
-                ].map((stat, index) => {
-                  const delayClasses = ["delay-300", "delay-400", "delay-500"];
-                  return (
-                    <div key={stat.label} className={`opacity-0 animate-fade-up ${delayClasses[index]}`}>
-                      <p className="font-display text-2xl sm:text-3xl md:text-[2rem] lg:text-[2.2rem] font-bold bg-gradient-to-r from-gold-500 to-blue-500 bg-clip-text text-transparent">
-                        {stat.value}
-                      </p>
-                      <p className="text-xs md:text-sm text-obsidian-500 mt-2">{stat.label}</p>
-                    </div>
-                  );
-                })}
+                ].map((stat) => (
+                  <div key={stat.label}>
+                    <p className="font-display text-2xl sm:text-3xl font-bold text-[#2D89C4]">{stat.value}</p>
+                    <p className="text-xs md:text-sm text-obsidian-500 mt-1.5">{stat.label}</p>
+                  </div>
+                ))}
               </div>
             </div>
 
-            <div className="relative">
-              <div className="relative h-[420px] sm:h-[520px] rounded-[2rem] overflow-hidden border border-white/70 shadow-[0_24px_80px_rgba(17,24,39,0.18)]">
-                <Image
-                  src="https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=1200&q=80"
-                  alt="Portrait photography showcase"
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 1024px) 100vw, 50vw"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-obsidian-950/45 via-transparent to-transparent" />
-              </div>
-
-              <div className="absolute -bottom-5 -left-3 sm:left-4 rounded-2xl border border-white/70 bg-white/85 backdrop-blur p-4 shadow-xl">
-                <p className="text-xs md:text-sm tracking-[0.2em] uppercase text-gold-600 mb-1">Bookings Open</p>
-                <p className="text-sm md:text-base text-obsidian-700 font-medium">Limited seasonal slots available</p>
+            <div className="relative order-1 lg:order-2 lg:-mr-10 xl:-mr-16">
+              <HeroSlideshow
+                variant="light"
+                images={heroSlideshowImages}
+                imageAlt="Jash Photography showcase"
+                className="h-[56vh] sm:h-[64vh] lg:h-[86vh] xl:h-[90vh]"
+              />
+              <div className="absolute -bottom-4 left-4 sm:left-6 z-10 max-w-[min(100%,280px)] rounded-2xl border border-white/80 bg-white/90 backdrop-blur-md p-4 shadow-lg">
+                <p className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-[#2D89C4] mb-1">
+                  Bookings Open
+                </p>
+                <p className="text-sm text-obsidian-700 font-medium leading-snug">Limited seasonal slots available</p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-float">
-          <div className="w-0.5 h-12 bg-gradient-to-b from-gold-500/30 via-gold-500 to-transparent rounded-full" />
-          <p className="text-xs text-gold-500 tracking-widest uppercase font-semibold">Scroll</p>
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-[#2D89C4]/80">
+          <div className="w-0.5 h-10 bg-gradient-to-b from-[#2D89C4]/30 via-[#2D89C4] to-transparent rounded-full" />
+          <p className="text-[10px] tracking-[0.25em] uppercase font-semibold">Scroll</p>
         </div>
       </section>
 
@@ -313,21 +312,21 @@ export default async function HomePage() {
       {/* ── EQUIPMENT RENTAL ────────────────────────────────────────── */}
       <section className="py-20 lg:py-28 bg-warm-white dark:bg-obsidian-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-12 gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-12 gap-4">
             <SectionHeader
               eyebrow="Rent Pro Gear"
               title="Equipment Rental"
               subtitle="Access the world's finest cameras, lenses, and lighting — without the commitment."
               centered={false}
             />
-            <Link href="/equipment" className="shrink-0">
+            <Link href="/equipment" className="shrink-0 sm:mt-2">
               <Button variant="outline" size="sm" className="gap-2">
                 View All Gear <ArrowRight size={14} />
               </Button>
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
             {featuredEquipment.length === 0 && (
               <p className="col-span-full text-center text-sm text-obsidian-500">
                 No equipment loaded yet. Check that the backend is running and CORS allows this origin.
@@ -338,7 +337,7 @@ export default async function HomePage() {
               return (
                 <div
                   key={item.id}
-                  className={`card-hover bg-white dark:bg-obsidian-950 rounded-3xl border border-obsidian-100 dark:border-obsidian-800 overflow-hidden shadow-lg dark:shadow-black/20 group transform transition duration-500 ease-out hover:-translate-y-1 opacity-0 animate-fade-up ${delayClasses[index]}`}
+                  className={`card-hover h-full bg-white dark:bg-obsidian-950 rounded-3xl border border-obsidian-100 dark:border-obsidian-800 overflow-hidden shadow-lg dark:shadow-black/20 group transform transition duration-500 ease-out hover:-translate-y-1 opacity-0 animate-fade-up flex flex-col ${delayClasses[index]}`}
                 >
                   <div className="img-zoom relative h-44">
                     <Image
@@ -360,14 +359,14 @@ export default async function HomePage() {
                       </span>
                     </div>
                   </div>
-                  <div className="p-5">
+                  <div className="p-5 flex flex-1 flex-col">
                     <p className="text-xs text-obsidian-400 dark:text-obsidian-500 uppercase tracking-wide font-mono mb-1">
                       {item.brand}
                     </p>
-                    <h3 className="font-medium text-obsidian-900 dark:text-obsidian-100 text-sm md:text-base lg:text-lg leading-tight mb-3">
+                    <h3 className="font-medium text-obsidian-900 dark:text-obsidian-100 text-sm md:text-base lg:text-lg leading-tight min-h-[3.5rem] mb-3">
                       {item.name}
                     </h3>
-                    <div className="flex items-center justify-between gap-4">
+                    <div className="mt-auto pt-2 flex items-center justify-between gap-4">
                       <div>
                         <span className="font-display text-lg md:text-xl lg:text-2xl text-gold-600 dark:text-gold-400">
                           {formatPrice(item.pricePerDay)}

@@ -5,6 +5,12 @@ import { CheckCircle } from "lucide-react";
 import { Button, Badge, SectionHeader } from "@/components/ui/index";
 import { getEquipment } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
+import HeroSlideshow from "@/components/equipment/HeroSlideshow";
+import heroImg1 from "@/lib/assests/hero/image1.png";
+import heroImg2 from "@/lib/assests/hero/image2.png";
+import heroImg4 from "@/lib/assests/hero/4.png";
+import heroImg5 from "@/lib/assests/hero/5.png";
+import heroImg6 from "@/lib/assests/hero/6.png";
 
 export const metadata: Metadata = {
   title: "Equipment Rental",
@@ -30,6 +36,15 @@ type EquipmentPageProps = {
 
 export default async function EquipmentPage({ searchParams }: EquipmentPageProps) {
   const equipmentList = await getEquipment();
+  const backendHeroImages = equipmentList
+    .map((item) => item.image)
+    .filter(Boolean)
+    .slice(0, 6);
+  const temporaryLocalHeroImages = [heroImg1.src, heroImg2.src, heroImg4.src, heroImg5.src, heroImg6.src];
+  const heroImages =
+    Array.from(new Set(backendHeroImages)).length >= 2
+      ? Array.from(new Set(backendHeroImages)).slice(0, 6)
+      : Array.from(new Set([...backendHeroImages, ...temporaryLocalHeroImages])).slice(0, 6);
   const activeCategory = categories.some((c) => c.key === searchParams?.category)
     ? (searchParams?.category as string)
     : "all";
@@ -42,29 +57,31 @@ export default async function EquipmentPage({ searchParams }: EquipmentPageProps
       {/* Hero */}
       <section className="relative py-20 lg:py-28 bg-obsidian-950 overflow-hidden">
         <div className="absolute inset-0">
-          <Image
-            src="https://images.unsplash.com/photo-1510127034890-ba27508e9f1c?w=1600&q=80"
-            alt="Equipment hero"
-            fill
-            className="object-cover opacity-20"
-            sizes="100vw"
-          />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(217,119,6,0.2),transparent_45%)]" />
           <div className="absolute inset-0 bg-gradient-to-b from-obsidian-950/70 to-obsidian-950" />
         </div>
-        <div className="relative max-w-4xl mx-auto px-4 text-center">
-          <p className="text-xs font-mono tracking-[0.25em] uppercase text-gold-400 mb-4">Pro Gear Rental</p>
-          <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-light text-white mb-5 leading-tight">
-            Shoot with the <em className="italic text-gold-400">Best</em>
-          </h1>
-          <p className="text-obsidian-300 max-w-xl mx-auto leading-relaxed mb-8">
-            Access world-class cameras, lenses, and lighting gear — rented by the day, delivered in perfect condition.
-          </p>
-          <div className="flex flex-wrap justify-center gap-4">
-            {["Free Cleaning Between Rentals", "Insurance Available", "Same-Day Collection"].map((f) => (
-              <span key={f} className="flex items-center gap-1.5 text-xs text-obsidian-300">
-                <CheckCircle size={12} className="text-gold-500" /> {f}
-              </span>
-            ))}
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+            <div>
+              <p className="text-xs font-mono tracking-[0.25em] uppercase text-gold-400 mb-4">Pro Gear Rental</p>
+              <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-light text-white mb-5 leading-tight">
+                Shoot with the <em className="italic text-gold-400">Best</em>
+              </h1>
+              <p className="text-obsidian-300 max-w-xl leading-relaxed mb-8">
+                Access world-class cameras, lenses, and lighting gear — rented by the day, delivered in perfect condition.
+              </p>
+              <div className="flex flex-wrap gap-4">
+                {["Free Cleaning Between Rentals", "Insurance Available", "Same-Day Collection"].map((f) => (
+                  <span key={f} className="flex items-center gap-1.5 text-xs text-obsidian-300">
+                    <CheckCircle size={12} className="text-gold-500" /> {f}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <HeroSlideshow images={heroImages} />
+            </div>
           </div>
         </div>
       </section>
