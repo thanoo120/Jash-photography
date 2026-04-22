@@ -101,6 +101,7 @@ const toSlug = (text: string): string =>
 // Cache for API responses
 const cache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const FETCH_TIMEOUT_MS = 8000;
 
 function invalidateCacheByPrefix(prefix: string): void {
   for (const key of Array.from(cache.keys())) {
@@ -111,6 +112,19 @@ function invalidateCacheByPrefix(prefix: string): void {
 }
 
 let warnedBackendUnreachable = false;
+
+async function fetchWithTimeout(
+  input: string,
+  init?: RequestInit
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 function isConnectionRefused(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
@@ -130,7 +144,7 @@ async function fetchJson<T>(path: string): Promise<T | null> {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
       next: { revalidate: 300 }, // ISR with 5 minute revalidation
     });
     if (!response.ok) {
@@ -157,8 +171,10 @@ async function fetchJson<T>(path: string): Promise<T | null> {
 
 async function fetchJsonFresh<T>(path: string): Promise<T | null> {
   try {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-      cache: "no-store",
+    const response = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
+      // Avoid no-store during build; it makes routes dynamic and can
+      // trigger static generation timeouts on hosted builds.
+      next: { revalidate: 60 },
     });
     if (!response.ok) return null;
     return (await response.json()) as T;
