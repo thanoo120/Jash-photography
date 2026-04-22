@@ -103,7 +103,7 @@ const cache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 function invalidateCacheByPrefix(prefix: string): void {
-  for (const key of cache.keys()) {
+  for (const key of Array.from(cache.keys())) {
     if (key.startsWith(prefix)) {
       cache.delete(key);
     }
