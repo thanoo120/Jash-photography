@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { CheckCircle, Calendar, Clock, Camera } from "lucide-react";
@@ -33,6 +33,16 @@ export default function BookingPage() {
     guests: "",
     message: "",
   });
+
+  const serviceFromUrlApplied = useRef(false);
+  useEffect(() => {
+    if (serviceFromUrlApplied.current) return;
+    const param = new URLSearchParams(window.location.search).get("service");
+    if (param) {
+      setForm((prev) => ({ ...prev, serviceType: param }));
+      serviceFromUrlApplied.current = true;
+    }
+  }, []);
 
   useEffect(() => {
     getServices().then(setServices);

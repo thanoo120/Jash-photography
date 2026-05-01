@@ -13,6 +13,8 @@ import {
   getEquipment,
   getGalleryProducts,
   getServices,
+  toEquipmentDetailPath,
+  toServiceDetailPath,
 } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 
@@ -249,9 +251,14 @@ export default async function HomePage() {
               return (
                 <div
                   key={service.id}
-                  className={`card-hover group bg-white/90 dark:bg-obsidian-900/85 rounded-3xl overflow-hidden border border-white/70 dark:border-obsidian-700 shadow-[0_20px_60px_rgba(17,24,39,0.08)] dark:shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-sm transform transition duration-500 ease-out hover:-translate-y-1.5 opacity-0 animate-fade-up ${delayClasses[i]}`}
+                  className={`relative card-hover group bg-white/90 dark:bg-obsidian-900/85 rounded-3xl overflow-hidden border border-white/70 dark:border-obsidian-700 shadow-[0_20px_60px_rgba(17,24,39,0.08)] dark:shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-sm transform transition duration-500 ease-out hover:-translate-y-1.5 opacity-0 animate-fade-up ${delayClasses[i]}`}
                 >
-                  <div className="img-zoom relative h-56 sm:h-64">
+                  <Link
+                    href={toServiceDetailPath(service.id)}
+                    className="absolute inset-0 z-0"
+                    aria-label={`View details for ${service.title}`}
+                  />
+                  <div className="img-zoom relative h-56 sm:h-64 pointer-events-none">
                     <Image
                       src={service.image}
                       alt={service.title}
@@ -266,11 +273,11 @@ export default async function HomePage() {
                       </span>
                     </div>
                   </div>
-                  <div className="p-6">
+                  <div className="p-6 relative z-10 pointer-events-none">
                     <h3 className="font-display text-2xl md:text-[1.75rem] lg:text-3xl font-medium text-obsidian-900 dark:text-obsidian-50 mb-2 group-hover:text-gold-600 dark:group-hover:text-gold-400 transition-colors duration-300">
                       {service.title}
                     </h3>
-                    <p className="text-sm md:text-base text-obsidian-500 dark:text-obsidian-400 mb-4 leading-relaxed">
+                    <p className="text-sm md:text-base text-obsidian-500 dark:text-obsidian-400 mb-4 leading-relaxed line-clamp-3">
                       {service.description}
                     </p>
                     <div className="flex items-center justify-between gap-4">
@@ -280,9 +287,12 @@ export default async function HomePage() {
                           {formatPrice(service.price)}
                         </p>
                       </div>
-                      <Link href="/booking">
+                      <Link
+                        href={`/booking?service=${encodeURIComponent(service.id)}`}
+                        className="pointer-events-auto"
+                      >
                         <Button size="sm" className="transition-all duration-300 group-hover:translate-y-0.5">
-                          Explore More
+                          Book
                         </Button>
                       </Link>
                     </div>
@@ -337,9 +347,14 @@ export default async function HomePage() {
               return (
                 <div
                   key={item.id}
-                  className={`card-hover h-full bg-white dark:bg-obsidian-950 rounded-3xl border border-obsidian-100 dark:border-obsidian-800 overflow-hidden shadow-lg dark:shadow-black/20 group transform transition duration-500 ease-out hover:-translate-y-1 opacity-0 animate-fade-up flex flex-col ${delayClasses[index]}`}
+                  className={`relative card-hover h-full bg-white dark:bg-obsidian-950 rounded-3xl border border-obsidian-100 dark:border-obsidian-800 overflow-hidden shadow-lg dark:shadow-black/20 group transform transition duration-500 ease-out hover:-translate-y-1 opacity-0 animate-fade-up flex flex-col ${delayClasses[index]}`}
                 >
-                  <div className="img-zoom relative h-44">
+                  <Link
+                    href={toEquipmentDetailPath(item.id)}
+                    className="absolute inset-0 z-0"
+                    aria-label={`View details for ${item.name}`}
+                  />
+                  <div className="img-zoom relative h-44 pointer-events-none">
                     <Image
                       src={item.image}
                       alt={item.name}
@@ -359,7 +374,7 @@ export default async function HomePage() {
                       </span>
                     </div>
                   </div>
-                  <div className="p-5 flex flex-1 flex-col">
+                  <div className="p-5 flex flex-1 flex-col relative z-10 pointer-events-none">
                     <p className="text-xs text-obsidian-400 dark:text-obsidian-500 uppercase tracking-wide font-mono mb-1">
                       {item.brand}
                     </p>
@@ -373,7 +388,14 @@ export default async function HomePage() {
                         </span>
                         <span className="text-xs md:text-sm text-obsidian-400"> /day</span>
                       </div>
-                      <Link href="/equipment">
+                      <Link
+                        href={
+                          item.available
+                            ? `/booking?equipment=${encodeURIComponent(item.id)}`
+                            : `/contact?subject=${encodeURIComponent(`Notify me: ${item.name}`)}`
+                        }
+                        className="pointer-events-auto"
+                      >
                         <Button size="sm" variant={item.available ? "primary" : "ghost"} disabled={!item.available}>
                           {item.available ? "Rent" : "Notify"}
                         </Button>

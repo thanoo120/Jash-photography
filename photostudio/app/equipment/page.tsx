@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { CheckCircle } from "lucide-react";
 import { Button, Badge, SectionHeader } from "@/components/ui/index";
-import { getEquipment } from "@/lib/api";
+import { getEquipment, toEquipmentDetailPath } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 import HeroSlideshow from "@/components/equipment/HeroSlideshow";
 import heroImg1 from "@/lib/assests/hero/image1.png";
@@ -121,9 +121,14 @@ export default async function EquipmentPage({ searchParams }: EquipmentPageProps
             {byCategory(activeCategory).map((item) => (
               <article
                 key={item.id}
-                className="card-hover group bg-white dark:bg-obsidian-900 rounded-sm border border-obsidian-100 dark:border-obsidian-800 overflow-hidden"
+                className="relative card-hover group bg-white dark:bg-obsidian-900 rounded-sm border border-obsidian-100 dark:border-obsidian-800 overflow-hidden"
               >
-                <div className="img-zoom relative h-52">
+                <Link
+                  href={toEquipmentDetailPath(item.id)}
+                  className="absolute inset-0 z-0"
+                  aria-label={`View details for ${item.name}`}
+                />
+                <div className="img-zoom relative h-52 pointer-events-none">
                   <Image
                     src={item.image}
                     alt={item.name}
@@ -143,12 +148,12 @@ export default async function EquipmentPage({ searchParams }: EquipmentPageProps
                   </div>
                 </div>
 
-                <div className="p-5">
+                <div className="p-5 relative z-10 pointer-events-none">
                   <p className="text-xs font-medium text-gold-600 dark:text-gold-400 mb-1">{item.brand}</p>
                   <h3 className="font-display text-xl font-medium text-obsidian-900 dark:text-obsidian-50 mb-2">
                     {item.name}
                   </h3>
-                  <p className="text-xs text-obsidian-500 dark:text-obsidian-400 leading-relaxed mb-3">
+                  <p className="text-xs text-obsidian-500 dark:text-obsidian-400 leading-relaxed mb-3 line-clamp-3">
                     {item.description}
                   </p>
 
@@ -172,6 +177,7 @@ export default async function EquipmentPage({ searchParams }: EquipmentPageProps
                       <span className="text-xs text-obsidian-400"> / day</span>
                     </div>
                     <Link
+                      className="pointer-events-auto"
                       href={
                         item.available
                           ? `/booking?equipment=${encodeURIComponent(item.id)}`

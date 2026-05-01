@@ -11,6 +11,10 @@ export interface Service {
   duration: string;
   includes: string[];
   featured: boolean;
+  /** Extra photos from the admin; shown on the service detail page when present. */
+  galleryImages?: string[];
+  averageRating?: number;
+  reviewCount?: number;
 }
 
 export interface Equipment {
@@ -24,6 +28,10 @@ export interface Equipment {
   brand: string;
   specs: string[];
   featured: boolean;
+  /** Extra photos from the admin; shown on the equipment detail page when present. */
+  galleryImages?: string[];
+  averageRating?: number;
+  reviewCount?: number;
 }
 
 export interface Product {

@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Clock, CheckCircle, ArrowRight } from "lucide-react";
 import { Button, SectionHeader, Badge } from "@/components/ui/index";
-import { getServices } from "@/lib/api";
+import { getServices, toServiceDetailPath } from "@/lib/api";
 import { formatPrice } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -100,10 +100,15 @@ export default async function ServicesPage({ searchParams }: ServicesPageProps) 
             {filteredServices.map((service, i) => (
               <article
                 key={service.id}
-                className="group bg-white dark:bg-obsidian-900 rounded-sm overflow-hidden border border-obsidian-100 dark:border-obsidian-800 card-hover flex flex-col sm:flex-row"
+                className="relative group bg-white dark:bg-obsidian-900 rounded-sm overflow-hidden border border-obsidian-100 dark:border-obsidian-800 card-hover flex flex-col sm:flex-row"
               >
+                <Link
+                  href={toServiceDetailPath(service.id)}
+                  className="absolute inset-0 z-0"
+                  aria-label={`View details for ${service.title}`}
+                />
                 {/* Image */}
-                <div className="img-zoom relative sm:w-52 shrink-0 h-52 sm:h-auto">
+                <div className="img-zoom relative sm:w-52 shrink-0 h-52 sm:h-auto pointer-events-none">
                   <Image
                     src={service.image}
                     alt={service.title}
@@ -124,7 +129,7 @@ export default async function ServicesPage({ searchParams }: ServicesPageProps) 
                 </div>
 
                 {/* Content */}
-                <div className="p-6 flex flex-col justify-between flex-1">
+                <div className="p-6 flex flex-col justify-between flex-1 relative z-10 pointer-events-none">
                   <div>
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-xs font-mono uppercase tracking-wide text-gold-600 dark:text-gold-400">
@@ -162,7 +167,7 @@ export default async function ServicesPage({ searchParams }: ServicesPageProps) 
                         <span className="text-sm font-body text-obsidian-400"> /{service.priceUnit}</span>
                       </p>
                     </div>
-                    <Link href="/booking">
+                    <Link href={`/booking?service=${encodeURIComponent(service.id)}`} className="pointer-events-auto">
                       <Button size="sm" className="gap-1.5">
                         Book Now <ArrowRight size={13} />
                       </Button>

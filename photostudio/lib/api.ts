@@ -42,6 +42,9 @@ type BackendService = {
   serviceType?: string | null;
   thumbnailImage?: string | null;
   includes?: string | null;
+  galleryImages?: string[] | null;
+  averageRating?: number | null;
+  reviewCount?: number | null;
 };
 
 type BackendEquipment = {
@@ -54,6 +57,9 @@ type BackendEquipment = {
   category?: string | null;
   thumbnailImage?: string | null;
   specifications?: string | null;
+  galleryImages?: string[] | null;
+  averageRating?: number | null;
+  reviewCount?: number | null;
 };
 
 type BackendGallery = {
@@ -97,6 +103,72 @@ const toEquipmentCategory = (raw?: string | null): Equipment["category"] => {
 
 const toSlug = (text: string): string =>
   text.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+export function toServiceDetailPath(frontendId: string): string {
+  return `/services/${frontendId.replace(/^svc-?/i, "")}`;
+}
+
+export function toEquipmentDetailPath(frontendId: string): string {
+  return `/equipment/${frontendId.replace(/^eq-?/i, "")}`;
+}
+
+/** Dynamic route param from `/services/[id]` (e.g. `12` or `svc-12`). */
+export function parseServiceDetailIdParam(param: string): number | null {
+  const n = Number.parseInt(String(param).trim().replace(/^svc-?/i, ""), 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/** Dynamic route param from `/equipment/[id]`. */
+export function parseEquipmentDetailIdParam(param: string): number | null {
+  const n = Number.parseInt(String(param).trim().replace(/^eq-?/i, ""), 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function mapBackendService(item: BackendService, index: number): Service {
+  return {
+    id: `svc-${item.id}`,
+    title: item.name,
+    slug: toSlug(item.name),
+    description: item.description,
+    longDescription: item.description,
+    price: Number(item.price || 0),
+    priceUnit: "session",
+    image:
+      item.thumbnailImage ||
+      "https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=800&q=80",
+    category: toCategory(String(item.serviceType)),
+    duration: item.durationMinutes ? `${item.durationMinutes} mins` : "Custom",
+    includes: item.includes
+      ? item.includes.split(",").map((x) => x.trim()).filter(Boolean)
+      : [],
+    featured: index < 3,
+    galleryImages: item.galleryImages?.filter(Boolean) as string[] | undefined,
+    averageRating: item.averageRating ?? undefined,
+    reviewCount: item.reviewCount != null ? Number(item.reviewCount) : undefined,
+  };
+}
+
+function mapBackendEquipment(item: BackendEquipment, index: number): Equipment {
+  return {
+    id: `eq-${item.id}`,
+    name: item.name,
+    category: toEquipmentCategory(String(item.category)),
+    description: item.description,
+    pricePerDay: Number(item.dailyRentalPrice || 0),
+    image:
+      item.thumbnailImage ||
+      "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80",
+    available: (item.availableStock || 0) > 0,
+    brand: item.brand || "Unknown",
+    specs: item.specifications
+      ? item.specifications.split(",").map((x) => x.trim()).filter(Boolean)
+      : [],
+    featured: index < 4,
+    galleryImages: item.galleryImages?.filter(Boolean) as string[] | undefined,
+    averageRating: item.averageRating ?? undefined,
+    reviewCount: item.reviewCount != null ? Number(item.reviewCount) : undefined,
+  };
+}
 
 // Cache for API responses
 const cache = new Map<string, { data: any; timestamp: number }>();
@@ -219,46 +291,26 @@ export async function getServices(): Promise<Service[]> {
   const data = await fetchJson<PagedResponse<BackendService>>("/services?page=0&size=50");
   if (!data?.content) return [];
 
-  return data.content.map((item, index) => ({
-    id: `svc-${item.id}`,
-    title: item.name,
-    slug: toSlug(item.name),
-    description: item.description,
-    longDescription: item.description,
-    price: Number(item.price || 0),
-    priceUnit: "session",
-    image:
-      item.thumbnailImage ||
-      "https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=800&q=80",
-    category: toCategory(item.serviceType),
-    duration: item.durationMinutes ? `${item.durationMinutes} mins` : "Custom",
-    includes: item.includes
-      ? item.includes.split(",").map((x) => x.trim()).filter(Boolean)
-      : [],
-    featured: index < 3,
-  }));
+  return data.content.map((item, index) => mapBackendService(item, index));
+}
+
+export async function getServiceById(numericId: number): Promise<Service | null> {
+  const data = await fetchJsonFresh<BackendService>(`/services/${numericId}`);
+  if (!data) return null;
+  return mapBackendService(data, 100);
 }
 
 export async function getEquipment(): Promise<Equipment[]> {
   const data = await fetchJsonFresh<PagedResponse<BackendEquipment>>("/equipment?page=0&size=50");
   if (!data?.content) return [];
 
-  return data.content.map((item, index) => ({
-    id: `eq-${item.id}`,
-    name: item.name,
-    category: toEquipmentCategory(item.category),
-    description: item.description,
-    pricePerDay: Number(item.dailyRentalPrice || 0),
-    image:
-      item.thumbnailImage ||
-      "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80",
-    available: (item.availableStock || 0) > 0,
-    brand: item.brand || "Unknown",
-    specs: item.specifications
-      ? item.specifications.split(",").map((x) => x.trim()).filter(Boolean)
-      : [],
-    featured: index < 4,
-  }));
+  return data.content.map((item, index) => mapBackendEquipment(item, index));
+}
+
+export async function getEquipmentById(numericId: number): Promise<Equipment | null> {
+  const data = await fetchJsonFresh<BackendEquipment>(`/equipment/${numericId}`);
+  if (!data) return null;
+  return mapBackendEquipment(data, 100);
 }
 
 export async function createEquipment(
@@ -280,22 +332,7 @@ export async function createEquipment(
   const result = await postJson<BackendEquipment>("/equipment", payload, token);
   if (!result) return null;
   invalidateCacheByPrefix("/equipment");
-  return {
-    id: `eq-${result.id}`,
-    name: result.name,
-    category: toEquipmentCategory(result.category),
-    description: result.description,
-    pricePerDay: Number(result.dailyRentalPrice || 0),
-    image:
-      result.thumbnailImage ||
-      "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80",
-    available: (result.availableStock || 0) > 0,
-    brand: result.brand || "Unknown",
-    specs: result.specifications
-      ? result.specifications.split(",").map((x) => x.trim()).filter(Boolean)
-      : [],
-    featured: false,
-  };
+  return mapBackendEquipment(result, 100);
 }
 
 function galleryToProduct(item: BackendGallery): Product {
@@ -356,20 +393,7 @@ export async function createService(
 ): Promise<Service | null> {
   const result = await postJson<BackendService>("/services", payload, token);
   if (!result) return null;
-  return {
-    id: `svc-${result.id}`,
-    title: result.name,
-    slug: toSlug(result.name),
-    description: result.description,
-    longDescription: result.description,
-    price: Number(result.price || 0),
-    priceUnit: "session",
-    image: result.thumbnailImage || "https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=800&q=80",
-    category: toCategory(result.serviceType),
-    duration: result.durationMinutes ? `${result.durationMinutes} mins` : "Custom",
-    includes: result.includes ? result.includes.split(",").map((x) => x.trim()).filter(Boolean) : [],
-    featured: false,
-  };
+  return mapBackendService(result, 100);
 }
 
 export async function updateServiceAdmin(
@@ -404,20 +428,7 @@ export async function updateServiceAdmin(
     const rawText = await response.text();
     if (rawText.trim()) {
       const result = JSON.parse(rawText) as BackendService;
-      return {
-        id: `svc-${result.id}`,
-        title: result.name,
-        slug: toSlug(result.name),
-        description: result.description,
-        longDescription: result.description,
-        price: Number(result.price || 0),
-        priceUnit: "session",
-        image: result.thumbnailImage || "https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=800&q=80",
-        category: toCategory(result.serviceType),
-        duration: result.durationMinutes ? `${result.durationMinutes} mins` : "Custom",
-        includes: result.includes ? result.includes.split(",").map((x) => x.trim()).filter(Boolean) : [],
-        featured: false,
-      };
+      return mapBackendService(result, 100);
     }
 
     // Some backends return 200/204 with no JSON body for updates.
@@ -673,22 +684,7 @@ export async function updateEquipmentAdmin(
   const result = await putJsonAuth<BackendEquipment>(`/equipment/${equipmentId}`, token, payload);
   if (!result) return null;
   invalidateCacheByPrefix("/equipment");
-  return {
-    id: `eq-${result.id}`,
-    name: result.name,
-    category: toEquipmentCategory(result.category),
-    description: result.description,
-    pricePerDay: Number(result.dailyRentalPrice || 0),
-    image:
-      result.thumbnailImage ||
-      "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80",
-    available: (result.availableStock || 0) > 0,
-    brand: result.brand || "Unknown",
-    specs: result.specifications
-      ? result.specifications.split(",").map((x) => x.trim()).filter(Boolean)
-      : [],
-    featured: false,
-  };
+  return mapBackendEquipment(result, 100);
 }
 
 export async function deleteGalleryAdmin(token: string, galleryId: number): Promise<boolean> {
