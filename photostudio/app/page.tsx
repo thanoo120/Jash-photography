@@ -78,10 +78,7 @@ export default async function HomePage() {
         <div className="relative z-10 max-w-[1750px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 pt-24 pb-20 lg:pt-20 lg:pb-20 w-full">
           <div className="grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-10 lg:gap-12 items-center">
             <div className="text-center lg:text-left order-2 lg:order-1">
-              <p className="flex items-center justify-center lg:justify-start gap-2 text-xs md:text-sm font-semibold tracking-[0.35em] uppercase text-sky-600 mb-6">
-                <Sparkles className="h-4 w-4 text-amber-500 shrink-0" aria-hidden />
-                Jash Photography
-              </p>
+              
 
               <h1 className="font-display text-5xl sm:text-6xl md:text-7xl font-bold text-obsidian-900 leading-[1.08] mb-6 tracking-tight">
                 <span className="block">Your Story.</span>
