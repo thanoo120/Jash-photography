@@ -24,7 +24,7 @@ A production-ready Spring Boot REST API for a photo shop website with service bo
 
 ```
 src/main/java/com/photoshop/
-├── config/           # Security, App, DataSeeder
+├── config/           # Security, OpenAPI, optional admin bootstrap
 ├── controller/       # REST controllers
 ├── dto/
 │   ├── request/      # Input DTOs with validation
@@ -162,19 +162,25 @@ mvn clean package -DskipTests
 java -jar target/photoshop-backend-1.0.0.jar
 ```
 
-### Default Credentials (seeded on first run)
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@photoshop.com | Admin@123 |
-| User | user@photoshop.com | User@123 |
+### Users and admins (important)
+
+- **Nothing is auto-seeded** on startup unless you deliberately enable **`app.bootstrap-admin`** (see [deploy/README-DEPLOY.md](deploy/README-DEPLOY.md)).
+- **Login** is always **email + password**. Public registration creates **`ROLE_USER`** only; **`ROLE_ADMIN`** is required for admin APIs and `/admin` in the frontend.
+- **Sample values** you may use with bootstrap (not created automatically):
+
+| Role | Example email | Example password (set yourself) |
+|------|---------------|----------------------------------|
+| Admin | admin@photoshop.com | Strong password via env `APP_BOOTSTRAP_ADMIN_PASSWORD` |
+
+For production EC2/RDS, follow **“How credentials work”** and **“Getting the first admin”** in [deploy/README-DEPLOY.md](deploy/README-DEPLOY.md).
 
 ---
 
 ## API Documentation
 
-Once running, visit:
-- **Swagger UI**: http://localhost:8080/api/swagger-ui.html
-- **OpenAPI JSON**: http://localhost:8080/api/v3/api-docs
+Once running (default port **8090**, context **`/api`**), visit:
+- **Swagger UI**: http://localhost:8090/api/swagger-ui/index.html
+- **OpenAPI JSON**: http://localhost:8090/api/v3/api-docs
 
 ---
 

@@ -12,6 +12,10 @@ const nextConfig = {
       },
       {
         protocol: "https",
+        hostname: "api.jash-photography.com",
+      },
+      {
+        protocol: "https",
         hostname: "res.cloudinary.com",
       },
       {
@@ -46,7 +50,7 @@ const nextConfig = {
       },
     ],
     // Optimize images further
-    formats: ['image/webp', 'image/avif'],
+    formats: ["image/webp", "image/avif"],
   },
   // Enable compression
   compress: true,

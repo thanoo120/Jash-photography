@@ -22,6 +22,9 @@ RUN chown appuser:appgroup app.jar
 
 USER appuser
 
+# Match healthcheck / typical cloud load balancers (overrides application.properties port in the image)
+ENV SERVER_PORT=8080
+
 # Expose port
 EXPOSE 8080
 

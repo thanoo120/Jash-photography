@@ -100,20 +100,20 @@ No environment variables required for the frontend-only version.
 
 ## 🔗 Connecting to Your Spring Boot Backend
 
-When your backend is ready, swap mock data calls with API requests:
+The app uses **`NEXT_PUBLIC_API_BASE_URL`** (see `.env.example`) — full base including `/api`, e.g. `http://localhost:8090/api` for local Spring Boot (port may vary).
+
+**Deployed frontend vs backend:** change this to your public API URL at **build** time (Vercel/host env). **User accounts are stored in the backend’s MySQL database**, so pointing the UI at production means you **register and log in against production data** (separate from local dev unless you use the same DB).
+
+First **admin** on a new production database: see [photoshop-backend/deploy/README-DEPLOY.md](../photoshop-backend/deploy/README-DEPLOY.md) (optional env bootstrap or SQL grant of `ROLE_ADMIN`).
 
 ```typescript
-// Current (mock data):
-import { services } from "@/lib/data/services";
-
-// Future (API):
-const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/services`);
-const services = await res.json();
+// Example service fetch (base URL already includes /api):
+const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/services?page=0&size=20`);
 ```
 
 Add to `.env.local`:
 ```
-NEXT_PUBLIC_API_URL=http://localhost:8080
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8090/api
 ```
 
 ---

@@ -11,7 +11,7 @@ target/
 
 ### Environment & Secrets ###
 .env
-application-prod.properties
+deploy/photoshop-backend.env
 application-local.properties
 
 ### IDE ###

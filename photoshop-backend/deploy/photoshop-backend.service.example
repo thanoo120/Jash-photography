@@ -1,0 +1,27 @@
+# Install:
+#   sudo useradd -r -s /usr/sbin/nologin photoshop || true
+#   sudo mkdir -p /opt/photoshop
+#   sudo cp photoshop-backend-1.0.0.jar /opt/photoshop/
+#   sudo cp deploy/photoshop-backend.env.example /opt/photoshop/photoshop-backend.env
+#   sudo chmod 600 /opt/photoshop/photoshop-backend.env && sudo chown root:root /opt/photoshop/photoshop-backend.env
+#   sudo chown photoshop:photoshop /opt/photoshop/photoshop-backend-1.0.0.jar
+#   sudo cp deploy/photoshop-backend.service.example /etc/systemd/system/photoshop-backend.service
+#   sudo systemctl daemon-reload && sudo systemctl enable --now photoshop-backend
+
+[Unit]
+Description=PhotoShop Backend API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=photoshop
+Group=photoshop
+WorkingDirectory=/opt/photoshop
+EnvironmentFile=/opt/photoshop/photoshop-backend.env
+ExecStart=/usr/bin/java -jar /opt/photoshop/photoshop-backend-1.0.0.jar
+Restart=on-failure
+RestartSec=15
+
+[Install]
+WantedBy=multi-user.target
